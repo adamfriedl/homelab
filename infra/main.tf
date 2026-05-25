@@ -19,11 +19,13 @@ module "network" {
   source = "./modules/network"
 
   network_name              = var.network_name
+  region                    = var.region
   firewall_name             = var.firewall_name
   ssh_source_ranges         = var.ssh_source_ranges
   enable_iap_ssh            = var.enable_iap_ssh
   iap_ssh_firewall_name     = var.iap_ssh_firewall_name
   iap_forwarding_ipv4_range = var.iap_forwarding_ipv4_range
+  enable_cloud_nat          = var.enable_cloud_nat
 }
 
 module "vm" {

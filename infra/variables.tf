@@ -44,6 +44,12 @@ variable "ssh_source_ranges" {
   default     = []
 }
 
+variable "enable_cloud_nat" {
+  description = "Regional Cloud NAT so VMs without external IPs reach the internet (APT, Tailscale, etc.). Set false only if you use another egress path."
+  type        = bool
+  default     = true
+}
+
 variable "enable_iap_ssh" {
   description = "Creates a VPC firewall permitting SSH TCP from IAP's forwarding range."
   type        = bool

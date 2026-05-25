@@ -4,6 +4,17 @@ variable "network_name" {
   default     = "terraform-network"
 }
 
+variable "region" {
+  description = "GCP region (must match subnets / VM zones) for regional Cloud NAT and router."
+  type        = string
+}
+
+variable "enable_cloud_nat" {
+  description = "Create Cloud Router + NAT for outbound internet access from internal VMs."
+  type        = bool
+  default     = true
+}
+
 variable "firewall_name" {
   description = "Name of the SSH ingress firewall rule."
   type        = string

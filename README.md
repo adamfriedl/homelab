@@ -1,6 +1,6 @@
 # `gcp-lab`
 
-Personal GCP lab repo: **`infra/`** (Terraform today) + **`config/`** (Ansible/playbooks soon). **Git root is this folder**, so commits include both trees.
+Personal GCP lab repo: **`infra/`** (Terraform) + **`config/`** (Ansible: baseline + optional Tailscale). **Git root is this folder**, so commits include both trees.
 
 ## Layout
 

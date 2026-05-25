@@ -11,3 +11,8 @@
 config/**/.venv/
 config/**/__pycache__/
 config/**/*.retry
+
+# Ansible optional Tailscale auth (copy from tailscale_secrets.yml.example in same folder)
+config/inventory/group_vars/gcp_lab/tailscale_secrets.yml
+# Legacy filename (prefer inventory/group_vars path so vars merge automatically)
+config/secrets.tailscale.yml

@@ -2,5 +2,10 @@
 - name: Baseline converge for GCP lab VM
   hosts: gcp_lab
   gather_facts: true
+  become: true
   roles:
     - role: common
+
+    # Loads tailscale_auth_key from inventory/group_vars/gcp_lab/tailscale_secrets.yml — or pass -e.
+    - role: tailscale
+      when: (tailscale_auth_key | default("", true)) | length > 0

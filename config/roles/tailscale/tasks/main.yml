@@ -1,0 +1,110 @@
+---
+# Privileged APT + tailscaled + tailscale CLI (install path before status check).
+- name: Refuse unsupported OS families (labs use Debian GCP images)
+  ansible.builtin.fail:
+    msg: "tailscale role only supports Debian-derived images (os_family=Debian)."
+  when: ansible_facts['os_family'] != "Debian"
+
+- name: Install and configure Tailscale
+  become: true
+  block:
+    - name: Set Tailscale apt distribution name
+      ansible.builtin.set_fact:
+        tailscale_pkg_distro: >-
+          {{ "ubuntu" if ansible_facts['distribution'] == "Ubuntu" else "debian" }}
+
+    - name: Install Tailscale GPG keyring
+      ansible.builtin.get_url:
+        url: "https://pkgs.tailscale.com/stable/{{ tailscale_pkg_distro }}/{{ ansible_facts['distribution_release'] }}.gpg"
+        dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        mode: "0644"
+
+    - name: Add Tailscale APT source
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/tailscale.list
+        mode: "0644"
+        content: |
+          deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/{{ tailscale_pkg_distro }} {{ ansible_facts['distribution_release'] }} main
+
+    - name: Install tailscale package
+      ansible.builtin.apt:
+        name: tailscale
+        state: present
+        update_cache: true
+
+    - name: Ensure tailscaled is running
+      ansible.builtin.service:
+        name: tailscaled
+        state: started
+        enabled: true
+
+    - name: Check whether already on tailnet
+      ansible.builtin.command: tailscale status
+      register: tailscale_status
+      changed_when: false
+      failed_when: false
+
+    # Shared argv for tailscale up: used on first join (with TS_AUTHKEY) and afterward
+    # to apply flags like --ssh on nodes already logged in.
+
+    - name: Build tailscale up argv base
+      ansible.builtin.set_fact:
+        tailscale_up_argv:
+          - tailscale
+          - up
+          - "{{ '--accept-routes=' ~ (tailscale_accept_routes | ternary('true', 'false')) }}"
+      when: tailscale_auth_key | default("", true) | length > 0
+
+    - name: Append Tailscale SSH server (tailscale ssh)
+      ansible.builtin.set_fact:
+        tailscale_up_argv: "{{ tailscale_up_argv + ['--ssh'] }}"
+      when:
+        - tailscale_up_argv is defined
+        - tailscale_enable_ssh_server | default(true)
+
+    - name: Append optional hostname
+      ansible.builtin.set_fact:
+        tailscale_up_argv: "{{ tailscale_up_argv + ['--hostname=' + tailscale_hostname] }}"
+      when:
+        - tailscale_up_argv is defined
+        - tailscale_hostname | default("", true) | length > 0
+
+    - name: Append optional advertise-tags
+      ansible.builtin.set_fact:
+        tailscale_up_argv: "{{ tailscale_up_argv + ['--advertise-tags=' + tailscale_advertise_tags] }}"
+      when:
+        - tailscale_up_argv is defined
+        - tailscale_advertise_tags | default("", true) | length > 0
+
+    - name: Join tailnet (TS_AUTHKEY, first login only)
+      ansible.builtin.command:
+        argv: "{{ tailscale_up_argv }}"
+      environment:
+        TS_AUTHKEY: "{{ tailscale_auth_key }}"
+      when:
+        tailscale_up_argv is defined
+        tailscale_status.rc != 0
+      register: tailscale_join
+      changed_when: tailscale_join.rc == 0
+      failed_when: tailscale_join.rc != 0
+      no_log: true
+
+    - name: Apply tailscale prefs when already authenticated (e.g. --ssh for tailscale ssh)
+      ansible.builtin.command:
+        argv: "{{ tailscale_up_argv }}"
+      when:
+        tailscale_up_argv is defined
+        tailscale_status.rc == 0
+      changed_when: false
+
+    - name: Turn off Tailscale SSH when opted out (--ssh persists otherwise)
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - set
+          - --ssh=false
+      when:
+        tailscale_up_argv is defined
+        not (tailscale_enable_ssh_server | default(true))
+        tailscale_status.rc == 0
+      changed_when: false
