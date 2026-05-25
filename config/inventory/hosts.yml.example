@@ -1,0 +1,9 @@
+# Optional static inventory if you do not use `terraform_inventory.py`.
+# Copy to hosts.yml and use: ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/hosts.yml site.yml
+# (Or set inventory = inventory/hosts.yml in ansible.cfg temporarily.)
+
+all:
+  children:
+    gcp_lab:
+      hosts:
+        YOUR_INSTANCE_NAME: {}

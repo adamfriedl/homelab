@@ -1,0 +1,10 @@
+---
+- name: Sanity check reachable host
+  ansible.builtin.command: uptime
+  register: uptime_out
+  changed_when: false
+
+- name: Show host summary (lab)
+  ansible.builtin.debug:
+    msg: >-
+      OK on {{ ansible_host | default(inventory_hostname) }} — {{ uptime_out.stdout }}

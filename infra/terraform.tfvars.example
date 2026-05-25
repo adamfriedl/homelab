@@ -1,0 +1,31 @@
+# Copy to terraform.tfvars in this directory (infra/), or use TF_VAR_* in CI.
+
+project_id = "YOUR_GCP_PROJECT_ID"
+region     = "us-central1"
+zone       = "us-central1-c"
+
+# Grant yourself IAP tunnel privilege (GCP login principal). Omit list [] to skip Terraform IAM bindings.
+iap_ssh_tunnel_members = [
+  "user:YOU@example.com",
+]
+
+# Typical IAP-only stance: disable public IPs and tighten direct-Internet SSH.
+enable_external_public_ip = false
+
+# SSH from arbitrary Internet IPs (narrow CIDR(s)). Leave [] to omit this rule entirely.
+ssh_source_ranges = []
+
+# Already covered by GCP when using gcloud/application-default OAuth for your login.
+#
+# SSH still additionally needs authorization to administer the instance (commonly
+# roles/compute.osLogin on the project, or OS Login disabled with metadata SSH keys + instance admin).
+# See: https://cloud.google.com/iap/docs/using-tcp-forwarding
+
+# Optional tweaks:
+# network_name              = "terraform-network"
+# firewall_name             = "terraform-allow-ssh-ingress"
+# iap_ssh_firewall_name     = "terraform-allow-ssh-iap"
+# enable_iap_ssh            = true
+# instance_name             = "terraform-instance"
+# machine_type              = "e2-micro"
+# boot_disk_image           = "debian-cloud/debian-11"

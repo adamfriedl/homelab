@@ -1,0 +1,6 @@
+---
+- name: Baseline converge for GCP lab VM
+  hosts: gcp_lab
+  gather_facts: true
+  roles:
+    - role: common

@@ -1,0 +1,13 @@
+# Repo-wide noise
+.DS_Store
+
+# Terraform (often run under infra/). Avoid committing state from a stray `terraform`
+# invocation at repo root.
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Ansible / Python venv inside config/
+config/**/.venv/
+config/**/__pycache__/
+config/**/*.retry

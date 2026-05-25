@@ -1,0 +1,33 @@
+# Terraform plugin/module cache (local only)
+.terraform/
+
+# State — use remote backend; never commit working state snapshots
+*.tfstate
+*.tfstate.*
+
+# Crash debug logs
+crash.log
+crash.*.log
+
+# Variable files often hold secrets / env-specific IDs (keep *.tfvars.example tracked)
+*.tfvars
+*.tfvars.json
+
+# Local overrides / experiment fragments
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI config can contain credentials
+.terraformrc
+terraform.rc
+
+# Saved plan blobs
+*.tfplan
+tfplan*
+
+# OS noise
+.DS_Store
+
+# Commit intentionally: `.terraform.lock.hcl` pins provider versions
