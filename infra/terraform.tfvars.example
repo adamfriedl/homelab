@@ -1,6 +1,7 @@
 # Copy to terraform.tfvars in this directory (infra/), or use TF_VAR_* in CI.
+# Use the project *ID* (below), not only the Console display name "gcp-lab".
 
-project_id = "YOUR_GCP_PROJECT_ID"
+project_id = "gcp-lab-497423"
 region     = "us-central1"
 zone       = "us-central1-c"
 
@@ -25,10 +26,16 @@ ssh_source_ranges = []
 # See: https://cloud.google.com/iap/docs/using-tcp-forwarding
 
 # Optional tweaks:
-# network_name              = "terraform-network"
-# firewall_name             = "terraform-allow-ssh-ingress"
-# iap_ssh_firewall_name     = "terraform-allow-ssh-iap"
+# network_name              = "gcp-lab-network"
+# firewall_name             = "gcp-lab-allow-ssh-ingress"
+# iap_ssh_firewall_name     = "gcp-lab-allow-ssh-iap"
 # enable_iap_ssh            = true
-# instance_name             = "terraform-instance"
 # machine_type              = "e2-micro"
-# boot_disk_image           = "debian-cloud/debian-11"
+# boot_disk_image           = "ubuntu-os-cloud/ubuntu-2404-lts"
+#
+# Multiple VMs — map key is the GCP instance name; {} inherits defaults above.
+# instances = {
+#   "gcp-lab-instance" = {}
+#   "gcp-lab-worker"   = { machine_type = "e2-small" }
+#   "gcp-lab-other"    = { zone = "us-central1-b" }
+# }

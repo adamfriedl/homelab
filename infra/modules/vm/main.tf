@@ -1,12 +1,14 @@
 resource "google_compute_instance" "vm_instance" {
-  name         = var.instance_name
-  machine_type = var.machine_type
-  zone         = var.zone
-  tags         = var.ssh_target_tags
+  for_each = var.instances
+
+  name         = each.key
+  machine_type = coalesce(each.value.machine_type, var.default_machine_type)
+  zone         = coalesce(each.value.zone, var.default_zone)
+  tags         = coalesce(each.value.ssh_target_tags, var.default_ssh_target_tags)
 
   boot_disk {
     initialize_params {
-      image = var.boot_disk_image
+      image = coalesce(each.value.boot_disk_image, var.default_boot_disk_image)
     }
   }
 
@@ -14,7 +16,7 @@ resource "google_compute_instance" "vm_instance" {
     network = var.network_name
 
     dynamic "access_config" {
-      for_each = var.enable_external_public_ip ? [1] : []
+      for_each = coalesce(each.value.enable_external_public_ip, var.default_enable_external_public_ip) ? [1] : []
       content {}
     }
   }

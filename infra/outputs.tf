@@ -1,6 +1,11 @@
-output "instance_name" {
-  description = "Compute Engine VM name — use this as the Ansible inventory hostname when using IAP."
-  value       = module.vm.instance_name
+output "instance_names" {
+  description = "Compute Engine VM names — Ansible inventory hostnames when using IAP."
+  value       = module.vm.instance_names
+}
+
+output "instances" {
+  description = "VM name, zone, and optional external IP per instance."
+  value       = module.vm.instances
 }
 
 output "project_id" {
@@ -9,21 +14,24 @@ output "project_id" {
 }
 
 output "zone" {
-  description = "Compute Engine zone for the VM — consumed by Ansible dynamic inventory among other tooling."
+  description = "Default Compute Engine zone — per-host zone may differ; see instances output."
   value       = var.zone
 }
 
-output "instance_external_ip" {
-  description = "Ephemeral IPv4 when enable_external_public_ip is true."
-  value       = module.vm.instance_external_ip
-}
-
 output "vpc_network_self_link" {
-  description = "Self link for the VPC used by the VM."
+  description = "Self link for the VPC used by the VMs."
   value       = module.network.network_self_link
 }
 
 output "ssh_via_iap_gcloud" {
-  description = "Example IAP tunneled SSH using your active gcloud account (not ADC)."
-  value       = format("gcloud compute ssh %s --zone=%s --project=%s --tunnel-through-iap", module.vm.instance_name, var.zone, var.project_id)
+  description = "Example IAP tunneled SSH commands per VM (active gcloud account, not ADC)."
+  value = {
+    for name, inst in module.vm.instances :
+    name => format(
+      "gcloud compute ssh %s --zone=%s --project=%s --tunnel-through-iap",
+      inst.name,
+      inst.zone,
+      var.project_id,
+    )
+  }
 }

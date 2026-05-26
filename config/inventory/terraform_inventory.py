@@ -45,20 +45,55 @@ def terraform_outputs(tf_dir: Path) -> dict:
         sys.exit(1)
 
 
-def output_value(outputs: dict, key: str) -> str | None:
+def output_value(outputs: dict, key: str):
     blob = outputs.get(key)
     if blob is None or not isinstance(blob, dict):
         return None
-    val = blob.get("value")
-    if val is None or val == "":
-        return None
-    return str(val)
+    return blob.get("value")
+
+
+def instance_hosts(outputs: dict) -> list[str]:
+    names = output_value(outputs, "instance_names")
+    if isinstance(names, list) and names:
+        return [str(n) for n in names]
+
+    # Legacy single-VM output (pre instance_names).
+    single = output_value(outputs, "instance_name")
+    if single:
+        return [str(single)]
+
+    return []
+
+
+def instance_zones(outputs: dict, hosts: list[str], default_zone: str | None) -> dict[str, str]:
+    instances = output_value(outputs, "instances")
+    hostvars: dict[str, str] = {}
+
+    if isinstance(instances, dict):
+        for name, meta in instances.items():
+            if not isinstance(meta, dict):
+                continue
+            zone = meta.get("zone")
+            if zone:
+                hostvars[str(name)] = str(zone)
+
+    if default_zone:
+        for host in hosts:
+            hostvars.setdefault(host, default_zone)
+
+    return hostvars
 
 
 def build_inventory(outputs: dict) -> dict:
-    keys = ("instance_name", "project_id", "zone")
-    values: dict[str, str | None] = {k: output_value(outputs, k) for k in keys}
-    missing = [k for k, v in values.items() if not v]
+    project_id = output_value(outputs, "project_id")
+    default_zone = output_value(outputs, "zone")
+    hosts = instance_hosts(outputs)
+
+    missing: list[str] = []
+    if not project_id:
+        missing.append("project_id")
+    if not hosts:
+        missing.append("instance_names (or legacy instance_name)")
 
     if missing:
         sys.stderr.write(
@@ -67,25 +102,34 @@ def build_inventory(outputs: dict) -> dict:
         )
         sys.exit(1)
 
-    host = values["instance_name"]
-    assert host is not None  # narrowed by missing check
+    zone_by_host = instance_zones(outputs, hosts, str(default_zone) if default_zone else None)
+
+    hostvars = {
+        host: {"gcp_zone": zone_by_host[host]}
+        for host in hosts
+        if host in zone_by_host
+    }
 
     return {
         "gcp_lab": {
-            "hosts": [host],
+            "hosts": hosts,
             "vars": {
-                "gcp_project_id": values["project_id"],
-                "gcp_zone": values["zone"],
+                "gcp_project_id": str(project_id),
             },
         },
-        "_meta": {"hostvars": {}},
+        "_meta": {"hostvars": hostvars},
     }
 
 
 def main() -> None:
     # Ansible calls: --list  or  --host <hostname>
     if "--host" in sys.argv:
-        json.dump({}, sys.stdout)
+        idx = sys.argv.index("--host")
+        hostname = sys.argv[idx + 1] if idx + 1 < len(sys.argv) else None
+        inv = build_inventory(terraform_outputs(infra_path()))
+        hostvars = inv.get("_meta", {}).get("hostvars", {})
+        payload = hostvars.get(hostname, {}) if hostname else {}
+        json.dump(payload, sys.stdout)
         sys.stdout.write("\n")
         return
 

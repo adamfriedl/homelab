@@ -2,16 +2,26 @@
 # Prefer inventory/group_vars/gcp_lab/tailscale_secrets.yml (auto-merged).
 # Alternative: ansible-playbook site.yml -e @path/to/secrets.yml
 # Generated in Tailscale admin: Settings → Keys (reusable/pre-auth key recommended for automation).
-tailscale_auth_key: ""
+tailscale_auth_key: ''
 
 # If true, node accepts subnets/routes advertised by other tailnet peers.
 tailscale_accept_routes: false
 
 # Optional Tailscale HTTPS DNS name suffix (omit to use GCP instance name automatically).
-tailscale_hostname: ""
+tailscale_hostname: ''
 
 # Run Tailscale's SSH daemon so peers can use `tailscale ssh user@node` per ACL.
 tailscale_enable_ssh_server: true
 
 # ACL tags, comma-separated — must be allowed by your ACLs, e.g. "tag:gcp-lab".
-tailscale_advertise_tags: ""
+tailscale_advertise_tags: ''
+
+# Route outbound traffic via a tailnet exit node (IP or MagicDNS hostname).
+# Requires --accept-routes (auto-enabled when this is non-empty). Set "" to disable.
+tailscale_exit_node: 'apple-tv'
+
+# If tailscale_exit_node is a hostname, resolve to Tailscale IPv4 from `tailscale status --json` after join.
+tailscale_exit_node_resolve: true
+
+# Allow LAN access while exit node is active (tailscale set --exit-node-allow-lan-access).
+tailscale_exit_node_allow_lan_access: false

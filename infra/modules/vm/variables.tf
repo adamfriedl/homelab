@@ -1,39 +1,44 @@
 variable "network_name" {
-  description = "Name of an existing VPC network to attach this instance to."
+  description = "Name of an existing VPC network to attach instances to."
   type        = string
 }
 
-variable "zone" {
-  description = "GCP zone for the Compute Engine instance."
+variable "default_zone" {
+  description = "Default GCP zone when an instance omits zone."
   type        = string
 }
 
-variable "instance_name" {
-  description = "Name of the Compute Engine VM."
-  type        = string
-  default     = "terraform-instance"
-}
-
-variable "machine_type" {
-  description = "GCP machine type for the VM."
+variable "default_machine_type" {
+  description = "Default machine type when an instance omits machine_type."
   type        = string
   default     = "e2-micro"
 }
 
-variable "boot_disk_image" {
-  description = "Boot disk image family or image self link."
+variable "default_boot_disk_image" {
+  description = "Default boot disk image when an instance omits boot_disk_image."
   type        = string
-  default     = "debian-cloud/debian-11"
+  default     = "ubuntu-os-cloud/ubuntu-2204-lts"
 }
 
-variable "ssh_target_tags" {
-  description = "Network tags for the instance (matched by firewall rules in the VPC)."
+variable "default_ssh_target_tags" {
+  description = "Default network tags when an instance omits ssh_target_tags."
   type        = list(string)
   default     = ["ssh-access"]
 }
 
-variable "enable_external_public_ip" {
-  description = "If true, allocate an ephemeral public IPv4 (not needed for gcloud --tunnel-through-iap)."
+variable "default_enable_external_public_ip" {
+  description = "Default public IPv4 when an instance omits enable_external_public_ip."
   type        = bool
   default     = false
+}
+
+variable "instances" {
+  description = "VMs to create. Map key = GCP instance name."
+  type = map(object({
+    zone                      = optional(string)
+    machine_type              = optional(string)
+    boot_disk_image           = optional(string)
+    enable_external_public_ip = optional(bool)
+    ssh_target_tags           = optional(list(string))
+  }))
 }

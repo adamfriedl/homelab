@@ -6,10 +6,10 @@ Ansible drives the GCP VM Terraform creates under **`infra/`**. With the default
 
 **Inventory is dynamic:** `inventory/terraform_inventory.py` runs **`terraform output -json`** against **`../infra/`** (configurable override below). It emits the **`gcp_lab`** group with:
 
-- **`gcp_project_id`**, **`gcp_zone`** from Terraform outputs (**`project_id`**, **`zone`** in **`infra/outputs.tf`**).
-- The single host **`instance_name`** from Terraform.
+- **`gcp_project_id`** from Terraform (**`project_id`** in **`infra/outputs.tf`**).
+- One host per VM from **`instance_names`** (each host gets **`gcp_zone`** in host vars from **`instances`**).
 
-Keep **`infra/` applied** at least once so those outputs exist. After you change **`instance_name`** / **`project_id`** / **`zone`** and **`terraform apply`**, Ansible picks up new values automatically — **no Ansible inventory edits.**
+Keep **`infra/` applied** at least once so those outputs exist. After you change **`instances`** / **`project_id`** / **`zone`** and **`terraform apply`**, Ansible picks up new hosts automatically — **no Ansible inventory edits.**
 
 **Manual override:** if Terraform lives elsewhere:
 
@@ -24,9 +24,11 @@ ansible-inventory --list    # cwd = config/
 
    ```bash
    cd ../infra
-   terraform output ssh_via_iap_gcloud
-   # Run the printed gcloud compute ssh ... --tunnel-through-iap command.
+   terraform output -json ssh_via_iap_gcloud
+   # Run the printed gcloud compute ssh ... --tunnel-through-iap command once.
    ```
+
+   That creates **`~/.ssh/google_compute_engine`** and adds the public half to project metadata. Ansible IAP SSH in **`iap_ssh.yml`** uses that key; plain **`ssh`** through the IAP **`ProxyCommand`** without it yields **`Permission denied (publickey)`**.
 
    If that fails, fix IAP / OS Login / firewall before Ansible.
 
@@ -78,6 +80,21 @@ cp inventory/group_vars/gcp_lab/tailscale_secrets.yml.example \
 You can instead pass **`-e @path/to/secrets.yml`** or **`-e tailscale_auth_key=…`**; that overrides merges at higher precedence — handy for CI.
 
 Re-runs **`tailscale up`** when already authenticated to apply prefs so flags like **`tailscale_enable_ssh_server`** (**`--ssh`**) take effect on machines that were already enrolled.
+
+### Exit node
+
+Set **`tailscale_exit_node`** in **`tailscale_secrets.yml`** to route the VM’s outbound traffic through a peer that advertises an exit node (your **`apple-tv`** already does). You can use the **hostname** — Tailscale accepts **`apple-tv`**, not only the **`100.x`** IP.
+
+After the VM joins, the role optionally **resolves the hostname** from **`tailscale status --json`** (same peer list the CLI uses) and runs **`tailscale set --exit-node=…`**. **`accept-routes`** is turned on automatically when an exit node is configured.
+
+Manual lookup from any machine on your tailnet (e.g. your Mac):
+
+```bash
+tailscale status --json | jq -r '.Peer[] | select(.HostName=="apple-tv") | .TailscaleIPs[0]'
+# → 100.119.241.51
+```
+
+Or pin the IP and skip lookup: **`tailscale_exit_node: "100.119.241.51"`** and **`tailscale_exit_node_resolve: false`**.
 
 ### Tailscale SSH (`tailscale ssh`)
 

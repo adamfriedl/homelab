@@ -26,15 +26,17 @@ module "network" {
   iap_ssh_firewall_name     = var.iap_ssh_firewall_name
   iap_forwarding_ipv4_range = var.iap_forwarding_ipv4_range
   enable_cloud_nat          = var.enable_cloud_nat
+
+  depends_on = [google_project_service.compute]
 }
 
 module "vm" {
   source = "./modules/vm"
 
-  network_name              = module.network.network_name
-  instance_name             = var.instance_name
-  machine_type              = var.machine_type
-  zone                      = var.zone
-  boot_disk_image           = var.boot_disk_image
-  enable_external_public_ip = var.enable_external_public_ip
+  network_name                      = module.network.network_name
+  default_zone                      = var.zone
+  default_machine_type              = var.machine_type
+  default_boot_disk_image           = var.boot_disk_image
+  default_enable_external_public_ip = var.enable_external_public_ip
+  instances                         = var.instances
 }

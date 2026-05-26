@@ -1,7 +1,7 @@
 variable "network_name" {
   description = "Name of the VPC network."
   type        = string
-  default     = "terraform-network"
+  default     = "gcp-lab-network"
 }
 
 variable "region" {
@@ -18,7 +18,7 @@ variable "enable_cloud_nat" {
 variable "firewall_name" {
   description = "Name of the SSH ingress firewall rule."
   type        = string
-  default     = "terraform-allow-ssh-ingress"
+  default     = "gcp-lab-allow-ssh-ingress"
 }
 
 variable "ssh_source_ranges" {
@@ -41,7 +41,7 @@ variable "enable_iap_ssh" {
 variable "iap_ssh_firewall_name" {
   description = "Name of the SSH firewall rule permitting IAP ingress."
   type        = string
-  default     = "terraform-allow-ssh-iap"
+  default     = "gcp-lab-allow-ssh-iap"
 }
 
 variable "iap_forwarding_ipv4_range" {

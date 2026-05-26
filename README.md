@@ -26,15 +26,15 @@ terraform plan
 
 Older two-project layouts may still exist only on **`lab/shared-vpc`** in Git history — paths there may not match this `infra/` tree until rebased/cherry-picked. Default **`main`** is single-project Terraform under **`infra/`**.
 
-## Move-in checklist (from `~/forge/tech-study/infra/`)
+## Move-in checklist (from an older `infra/`-only layout)
 
 If you still had an older folder with `.git`:
 
 ```bash
 # One-time: lift git to monorepo root (from parent of infra)
-mv ~/forge/tech-study/infra/.git ~/forge/tech-study/gcp-lab/.git
-rm -rf ~/forge/tech-study/infra   # only after confirming gcp-lab tracks everything you need
-cd ~/forge/tech-study/gcp-lab
+mv ~/path/to/old-infra/.git ~/path/to/gcp-lab/.git
+rm -rf ~/path/to/old-infra   # only after confirming gcp-lab tracks everything you need
+cd ~/path/to/gcp-lab
 git status
 ```
 

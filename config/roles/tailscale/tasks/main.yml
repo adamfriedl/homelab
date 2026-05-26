@@ -1,8 +1,8 @@
 ---
 # Privileged APT + tailscaled + tailscale CLI (install path before status check).
-- name: Refuse unsupported OS families (labs use Debian GCP images)
+- name: Refuse unsupported OS families (lab uses Ubuntu/Debian on GCE)
   ansible.builtin.fail:
-    msg: "tailscale role only supports Debian-derived images (os_family=Debian)."
+    msg: "tailscale role only supports Debian family images (Ubuntu and Debian; os_family=Debian)."
   when: ansible_facts['os_family'] != "Debian"
 
 - name: Install and configure Tailscale
@@ -81,7 +81,13 @@
         tailscale_up_argv:
           - tailscale
           - up
-          - "{{ '--accept-routes=' ~ (tailscale_accept_routes | ternary('true', 'false')) }}"
+          - "{{ '--accept-routes=' ~ (tailscale_accept_routes_effective | ternary('true', 'false')) }}"
+      vars:
+        tailscale_accept_routes_effective: >-
+          {{
+            (tailscale_accept_routes | bool)
+            or (tailscale_exit_node | default("", true) | length > 0)
+          }}
       when: tailscale_auth_key | default("", true) | length > 0
 
     - name: Append Tailscale SSH server (tailscale ssh)
@@ -142,3 +148,53 @@
         - not (tailscale_enable_ssh_server | default(true))
         - tailscale_logged_in | bool
       changed_when: false
+
+    - name: Configure exit node (after join — peers visible in status JSON)
+      when: tailscale_exit_node | default("", true) | length > 0
+      block:
+        - name: Refresh tailnet peer list for exit-node lookup
+          ansible.builtin.command: tailscale status --json
+          register: tailscale_peers_json
+          changed_when: false
+
+        - name: Resolve exit node hostname to Tailscale IPv4
+          ansible.builtin.set_fact:
+            tailscale_exit_node_effective: >-
+              {{
+                (
+                  (tailscale_peers_json.stdout | from_json).Peer.values()
+                  | selectattr('HostName', 'equalto', tailscale_exit_node)
+                  | map(attribute='TailscaleIPs')
+                  | flatten
+                  | first
+                  | default(none)
+                )
+              }}
+          when:
+            - tailscale_exit_node_resolve | default(true) | bool
+            - not (tailscale_exit_node | regex_search('^\\d+\\.\\d+\\.\\d+\\.\\d+$'))
+
+        - name: Use configured exit node when not resolving (IP or hostname)
+          ansible.builtin.set_fact:
+            tailscale_exit_node_effective: "{{ tailscale_exit_node }}"
+          when: tailscale_exit_node_effective is not defined
+
+        - name: Fail when exit node hostname is missing from tailnet
+          ansible.builtin.fail:
+            msg: >-
+              No peer HostName={{ tailscale_exit_node }} in `tailscale status --json`.
+              Confirm apple-tv is online, or set tailscale_exit_node to its Tailscale IP
+              (e.g. 100.119.241.51) with tailscale_exit_node_resolve: false.
+          when:
+            - tailscale_exit_node_resolve | default(true) | bool
+            - not (tailscale_exit_node | regex_search('^\\d+\\.\\d+\\.\\d+\\.\\d+$'))
+            - tailscale_exit_node_effective is none
+
+        - name: Apply exit node
+          ansible.builtin.command:
+            argv:
+              - tailscale
+              - set
+              - "--exit-node={{ tailscale_exit_node_effective }}"
+              - "--exit-node-allow-lan-access={{ tailscale_exit_node_allow_lan_access | ternary('true', 'false') }}"
+          changed_when: false

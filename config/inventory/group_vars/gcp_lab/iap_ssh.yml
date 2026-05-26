@@ -1,8 +1,15 @@
 # gcp_project_id and gcp_zone come from Terraform (inventory/terraform_inventory.py).
 
 # IAP tunnel: Ansible opens SSH via gcloud (same mechanic as compute ssh --tunnel-through-iap).
-ansible_ssh_common_args: '-o StrictHostKeyChecking=accept-new -o ProxyCommand="gcloud compute start-iap-tunnel {{ inventory_hostname }} 22 --listen-on-stdin --zone={{ gcp_zone }} --project={{ gcp_project_id }}"'
+ansible_ssh_common_args: >-
+  -o IdentitiesOnly=yes
+  -o StrictHostKeyChecking=accept-new
+  -o ProxyCommand="gcloud compute start-iap-tunnel {{ inventory_hostname }} 22 --listen-on-stdin --zone={{ gcp_zone }} --project={{ gcp_project_id }}"
 
-# Remote user Debian/GCE: often your workstation login OS Login Unix name, or set explicitly.
+# gcloud compute ssh uses this key pair (added to project metadata on first gcloud ssh).
+# Plain `ssh` via IAP does not — without this, you get Permission denied (publickey).
+ansible_ssh_private_key_file: ~/.ssh/google_compute_engine
+
+# Remote user Ubuntu/GCE: often your workstation login OS Login Unix name, or set explicitly.
 # Uncomment if Ansible picks the wrong login:
 # ansible_user: YOUR_UNIX_USERNAME

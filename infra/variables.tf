@@ -1,7 +1,7 @@
 variable "project_id" {
   description = "GCP project ID used by the Google provider."
   type        = string
-  default     = "tech-study-497214"
+  default     = "gcp-lab-497423"
 
   validation {
     condition     = length(var.project_id) > 0 && !can(regex("^\\s*$", var.project_id))
@@ -29,13 +29,13 @@ variable "zone" {
 variable "network_name" {
   description = "VPC name created by module.network."
   type        = string
-  default     = "tech-study-network"
+  default     = "gcp-lab-network"
 }
 
 variable "firewall_name" {
   description = "Public Internet SSH ingress firewall rule name (skipped when ssh_source_ranges is empty)."
   type        = string
-  default     = "tech-study-allow-ssh-ingress"
+  default     = "gcp-lab-allow-ssh-ingress"
 }
 
 variable "ssh_source_ranges" {
@@ -59,7 +59,7 @@ variable "enable_iap_ssh" {
 variable "iap_ssh_firewall_name" {
   description = "Name of the SSH firewall permitting IAP ingress."
   type        = string
-  default     = "tech-study-allow-ssh-iap"
+  default     = "gcp-lab-allow-ssh-iap"
 }
 
 variable "iap_forwarding_ipv4_range" {
@@ -75,25 +75,33 @@ variable "iap_ssh_tunnel_members" {
 }
 
 variable "enable_external_public_ip" {
-  description = "Ephemeral public IPv4 on the VM. Not required for gcloud compute ssh --tunnel-through-iap."
+  description = "Default ephemeral public IPv4 for instances that do not override it. Not required for gcloud compute ssh --tunnel-through-iap."
   type        = bool
   default     = false
 }
 
-variable "instance_name" {
-  description = "Compute Engine VM name."
-  type        = string
-  default     = "tech-study-instance"
-}
-
 variable "machine_type" {
-  description = "Compute Engine machine type."
+  description = "Default Compute Engine machine type for instances that do not override it."
   type        = string
   default     = "e2-micro"
 }
 
 variable "boot_disk_image" {
-  description = "Boot disk image."
+  description = "Default boot disk image for instances that do not override it."
   type        = string
-  default     = "debian-cloud/debian-11"
+  default     = "ubuntu-os-cloud/ubuntu-2204-lts"
+}
+
+variable "instances" {
+  description = "Compute Engine VMs to create. Map key = GCP instance name; unset fields inherit machine_type, boot_disk_image, enable_external_public_ip, and zone above."
+  type = map(object({
+    zone                      = optional(string)
+    machine_type              = optional(string)
+    boot_disk_image           = optional(string)
+    enable_external_public_ip = optional(bool)
+    ssh_target_tags           = optional(list(string))
+  }))
+  default = {
+    "gcp-lab-1" = {}
+  }
 }
