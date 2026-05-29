@@ -6,10 +6,12 @@
   when: ansible_facts['os_family'] != "Debian"
 
 - name: Check tailnet state (JSON — exit code is unreliable when "Logged out")
-  ansible.builtin.command: tailscale status --json
+  ansible.builtin.command:
+    cmd: tailscale status --json
   register: tailscale_status_json
   changed_when: false
   failed_when: false
+  timeout: 30
 
 # tailscale status can return rc=0 while still showing "Logged out"; never skip join on rc alone.
 - name: Derive whether this node has a tailnet IP (actually joined)
