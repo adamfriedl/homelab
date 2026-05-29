@@ -15,13 +15,3 @@ tailscale_enable_ssh_server: true
 
 # ACL tags, comma-separated — must be allowed by your ACLs, e.g. "tag:gcp-lab".
 tailscale_advertise_tags: ''
-
-# Route outbound traffic via a tailnet exit node (IP or hostname). Empty = use Cloud NAT only.
-# Exit node on IAP-managed VMs breaks gcloud/Ansible SSH — enable only when you accept that tradeoff.
-tailscale_exit_node: ""
-
-# If tailscale_exit_node is a hostname, resolve to Tailscale IPv4 from `tailscale status --json` after join.
-tailscale_exit_node_resolve: true
-
-# Allow LAN access while exit node is active — keep true on GCP IAP VMs (private 10.x paths).
-tailscale_exit_node_allow_lan_access: true
