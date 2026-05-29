@@ -1,9 +1,13 @@
 # gcp_project_id and gcp_zone come from Terraform (inventory/terraform_inventory.py).
 
 # IAP tunnel: Ansible opens SSH via gcloud (same mechanic as compute ssh --tunnel-through-iap).
+# ControlMaster reuses one IAP tunnel for the whole play — without it, every task spawns gcloud again.
 ansible_ssh_common_args: >-
   -o IdentitiesOnly=yes
   -o StrictHostKeyChecking=accept-new
+  -o ControlMaster=auto
+  -o ControlPersist=300
+  -o ControlPath=/tmp/ansible-iap-%C
   -o ProxyCommand="gcloud compute start-iap-tunnel {{ inventory_hostname }} 22 --listen-on-stdin --zone={{ gcp_zone }} --project={{ gcp_project_id }}"
 
 # OS Login: key must be on your OS Login profile (not only project metadata).
