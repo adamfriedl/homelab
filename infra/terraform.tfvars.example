@@ -10,6 +10,15 @@ iap_ssh_tunnel_members = [
   "user:YOU@example.com",
 ]
 
+# OS Login: SSH + sudo via IAM (recommended). Grant the same principals that need Ansible/gcloud SSH.
+# After apply, add your SSH key to your OS Login profile (Gmail usernames are auto-generated, e.g. you_gmail_com):
+#   gcloud compute os-login ssh-keys add --key-file=~/.ssh/google_compute_engine.pub
+#   gcloud compute os-login describe-profile --format='value(posixAccounts[0].username)'
+os_login_admin_members = [
+  "user:YOU@example.com",
+  # "serviceAccount:terraform-ci@YOUR_PROJECT_ID.iam.gserviceaccount.com",
+]
+
 # Typical IAP-only stance: disable public IPs and tighten direct-Internet SSH.
 enable_external_public_ip = false
 

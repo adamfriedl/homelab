@@ -73,6 +73,18 @@ variable "iap_ssh_tunnel_members" {
   default     = []
 }
 
+variable "enable_os_login" {
+  description = "Enable OS Login project-wide and grant os_login_admin_members roles/compute.osAdminLogin (SSH + sudo)."
+  type        = bool
+  default     = true
+}
+
+variable "os_login_admin_members" {
+  description = "IAM members granted roles/compute.osAdminLogin (SSH as a Linux user with sudo). Include CI service accounts used for Ansible."
+  type        = list(string)
+  default     = []
+}
+
 variable "enable_external_public_ip" {
   description = "Default ephemeral public IPv4 for instances that do not override it. Not required for gcloud compute ssh --tunnel-through-iap."
   type        = bool

@@ -1,0 +1,212 @@
+# Plan on PR / weekly; apply + Ansible converge on merge to main.
+# Ansible syntax-check only → .github/workflows/ansible.yml
+#
+# GCP auth (Workload Identity Federation):
+#   1. CI service account (e.g. terraform-ci@PROJECT.iam.gserviceaccount.com) with roles/editor (or tighter),
+#      storage.objectAdmin on state bucket (gcp-lab-tf-state), plus IAP + OS Login (Terraform grants the latter two).
+#   2. WIF pool/provider for this repo → repository secrets:
+#        GCP_WORKLOAD_IDENTITY_PROVIDER
+#        GCP_SERVICE_ACCOUNT
+#
+# Repository variables:
+#   GCP_PROJECT_ID          required
+#   GCP_REGION              optional (default us-central1)
+#   GCP_ZONE                optional (default us-central1-c)
+#   IAP_SSH_TUNNEL_MEMBER   optional — user:you@example.com (human SSH / IAP)
+#
+# Optional secret:
+#   TAILSCALE_AUTH_KEY      tskey-auth-… for Tailscale role in CI converge
+#
+# Local one-time OS Login (after first terraform apply with os_login_admin_members):
+#   gcloud compute os-login ssh-keys add --key-file=~/.ssh/google_compute_engine.pub
+#   gcloud compute os-login describe-profile --format='value(posixAccounts[0].username)'
+
+name: Plan and apply
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - "config/**"
+      - ".github/workflows/plan-and-apply.yml"
+  pull_request:
+    paths:
+      - "infra/**"
+      - "config/**"
+      - ".github/workflows/plan-and-apply.yml"
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: plan-and-apply-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Terraform validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: terraform init (no backend)
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        run: terraform validate
+
+  plan-or-apply:
+    name: Terraform plan or apply
+    needs: validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Write terraform.tfvars for CI
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          GCP_ZONE: ${{ vars.GCP_ZONE }}
+          IAP_SSH_TUNNEL_MEMBER: ${{ vars.IAP_SSH_TUNNEL_MEMBER }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "${GCP_PROJECT_ID}" ]; then
+            echo "Set repository variable GCP_PROJECT_ID (Settings → Secrets and variables → Actions → Variables)."
+            exit 1
+          fi
+
+          region="${GCP_REGION:-us-central1}"
+          zone="${GCP_ZONE:-us-central1-c}"
+
+          iap_members=()
+          os_login_members=()
+
+          if [ -n "${IAP_SSH_TUNNEL_MEMBER}" ]; then
+            iap_members+=("\"${IAP_SSH_TUNNEL_MEMBER}\"")
+            os_login_members+=("\"${IAP_SSH_TUNNEL_MEMBER}\"")
+          fi
+
+          if [ -n "${GCP_SERVICE_ACCOUNT}" ]; then
+            sa_member="\"serviceAccount:${GCP_SERVICE_ACCOUNT}\""
+            iap_members+=("${sa_member}")
+            os_login_members+=("${sa_member}")
+          fi
+
+          {
+            echo "project_id = \"${GCP_PROJECT_ID}\""
+            echo "region     = \"${region}\""
+            echo "zone       = \"${zone}\""
+            echo "enable_external_public_ip = false"
+            echo "enable_os_login = true"
+            echo "ssh_source_ranges = []"
+            printf '%s\n' "iap_ssh_tunnel_members = [$(IFS=,; echo "${iap_members[*]}")]"
+            printf '%s\n' "os_login_admin_members = [$(IFS=,; echo "${os_login_members[*]}")]"
+          } > terraform.tfvars
+
+      - name: terraform init
+        run: terraform init -input=false
+
+      - name: terraform plan
+        if: github.event_name != 'push' || github.ref != 'refs/heads/main'
+        run: terraform plan -no-color -input=false
+
+      - name: terraform apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve -input=false
+
+  converge:
+    name: Ansible converge
+    needs: plan-or-apply
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: terraform init (inventory outputs)
+        working-directory: infra
+        run: terraform init -input=false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: pip install ansible-core
+
+      - name: OS Login SSH key for CI service account
+        id: oslogin
+        env:
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "${GCP_SERVICE_ACCOUNT}" ]; then
+            echo "GCP_SERVICE_ACCOUNT secret is required for Ansible converge."
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          ssh-keygen -t rsa -f ~/.ssh/ci_oslogin -N "" -q
+
+          gcloud compute os-login ssh-keys add --key-file=~/.ssh/ci_oslogin.pub
+
+          ansible_user="$(gcloud compute os-login describe-profile --format='value(posixAccounts[0].username)')"
+          if [ -z "${ansible_user}" ]; then
+            echo "OS Login profile has no POSIX username after ssh-keys add."
+            exit 1
+          fi
+
+          echo "ansible_user=${ansible_user}" >> "${GITHUB_OUTPUT}"
+
+      - name: ansible-playbook site.yml
+        working-directory: config
+        env:
+          TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
+        run: |
+          cat > /tmp/ci-ssh.yml <<EOF
+          ansible_user: ${{ steps.oslogin.outputs.ansible_user }}
+          ansible_ssh_private_key_file: ~/.ssh/ci_oslogin
+          EOF
+
+          extra=()
+          if [ -n "${TAILSCALE_AUTH_KEY}" ]; then
+            extra+=(-e "tailscale_auth_key=${TAILSCALE_AUTH_KEY}")
+          fi
+
+          ansible-playbook site.yml -e @/tmp/ci-ssh.yml "${extra[@]}"

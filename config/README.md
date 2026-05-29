@@ -20,17 +20,17 @@ ansible-inventory --list    # cwd = config/
 
 ## One-time wiring
 
-1. **Preflight SSH** — uses **`gcloud`**, not Terraform `application-default` alone:
+1. **OS Login + IAP SSH** — after **`terraform apply`** enables OS Login and grants **`roles/compute.osAdminLogin`**:
 
    ```bash
-   cd ../infra
-   terraform output -json ssh_via_iap_gcloud
-   # Run the printed gcloud compute ssh ... --tunnel-through-iap command once.
+   gcloud compute os-login ssh-keys add --key-file=~/.ssh/google_compute_engine.pub
+   gcloud compute os-login describe-profile --format='value(posixAccounts[0].username)'
+   # Set ansible_user in iap_ssh.yml to that username (Gmail: typically you_gmail_com).
    ```
 
-   That creates **`~/.ssh/google_compute_engine`** and adds the public half to project metadata. Ansible IAP SSH in **`iap_ssh.yml`** uses that key; plain **`ssh`** through the IAP **`ProxyCommand`** without it yields **`Permission denied (publickey)`**.
+   **`~/.ssh/google_compute_engine`** is still the private key Ansible uses; the public half lives on your **OS Login profile**. Plain **`ssh`** through the IAP **`ProxyCommand`** without that key yields **`Permission denied (publickey)`**.
 
-   If that fails, fix IAP / OS Login / firewall before Ansible.
+   If that fails, fix IAP / OS Login IAM / firewall before Ansible.
 
 2. **`Remote user` + sudo:** The play uses **`become: true`**, so Ansible needs a user that can escalate to root (APT, **`tailscale`**, **`systemd`**). That is often the same OS Login / SSH user as **`gcloud compute ssh`** — set **`ansible_user`** in **`inventory/group_vars/gcp_lab/iap_ssh.yml`** or **`-u`** if needed. Use passwordless sudo on the VM, or **`ansible-playbook --ask-become-pass`**.
 
