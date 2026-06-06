@@ -1,0 +1,5 @@
+# SSH over Tailscale MagicDNS (OpenSSH on :22). Default ~/.ssh keys apply.
+ansible_user: adam
+ansible_ssh_common_args: >-
+  -o IdentitiesOnly=yes
+  -o StrictHostKeyChecking=accept-new

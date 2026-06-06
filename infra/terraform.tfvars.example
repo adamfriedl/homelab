@@ -22,8 +22,8 @@ os_login_admin_members = [
 # Typical IAP-only stance: disable public IPs and tighten direct-Internet SSH.
 enable_external_public_ip = false
 
-# Default true — Cloud NAT so instances without external IPs can reach APT, Tailscale, etc.
-# enable_cloud_nat         = false
+# Steady state: false (no NAT charge). Set true temporarily to bootstrap apt/Tailscale on a new VM.
+enable_cloud_nat = false
 
 # SSH from arbitrary Internet IPs (narrow CIDR(s)). Leave [] to omit this rule entirely.
 ssh_source_ranges = []

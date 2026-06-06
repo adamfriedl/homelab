@@ -14,8 +14,8 @@
 #   GCP_ZONE                optional (default us-central1-c)
 #   IAP_SSH_TUNNEL_MEMBER   optional — user:you@example.com (human SSH / IAP)
 #
-# Optional secret:
-#   TAILSCALE_AUTH_KEY      tskey-auth-… for Tailscale role in CI converge
+# Secret (keep in sync with config/.../tailscale_secrets.yml for laptop runs):
+#   TAILSCALE_AUTH_KEY      tskey-auth-… reusable auth key from Tailscale admin → Keys
 #
 # Local one-time OS Login (after first terraform apply with os_login_admin_members):
 #   gcloud compute os-login ssh-keys add --key-file=~/.ssh/google_compute_engine.pub
@@ -242,4 +242,4 @@ jobs:
             extra+=(-e "tailscale_auth_key=${TAILSCALE_AUTH_KEY}")
           fi
 
-          ansible-playbook site.yml -e @/tmp/ci-ssh.yml "${extra[@]}"
+          ansible-playbook site.yml -e @/tmp/ci-ssh.yml --limit gcp_lab "${extra[@]}"

@@ -24,7 +24,7 @@
       ansible.builtin.set_fact:
         tailscale_logged_in: >-
           {{
-            (tailscale_status_json.stdout | from_json).TailscaleIPs | default([])
+            ((tailscale_status_json.stdout | from_json).TailscaleIPs | default([], true))
             | length > 0
           }}
   rescue:
@@ -116,6 +116,26 @@
         - tailscale_up_argv is defined
         - tailscale_advertise_tags | default("", true) | length > 0
 
+    - name: Append optional advertise-exit-node (first join)
+      ansible.builtin.set_fact:
+        tailscale_up_argv: "{{ tailscale_up_argv + ['--advertise-exit-node'] }}"
+      when:
+        - tailscale_up_argv is defined
+        - tailscale_advertise_exit_node | default(false) | bool
+
+    - name: Append optional exit-node (first join)
+      ansible.builtin.set_fact:
+        tailscale_up_argv: >-
+          {{
+            tailscale_up_argv
+            + ['--exit-node=' + tailscale_exit_node]
+            + ['--exit-node-allow-lan-access='
+               + (tailscale_exit_node_allow_lan_access | bool | ternary('true', 'false'))]
+          }}
+      when:
+        - tailscale_up_argv is defined
+        - tailscale_exit_node | default("", true) | length > 0
+
     # Auth keys are tskey-auth-… — not Tailscale API keys (tskey-api-…) or other admin tokens.
     - name: Refuse invalid tailscale_auth_key shape before join
       ansible.builtin.fail:
@@ -153,14 +173,65 @@
         - tailscale_join is defined
         - tailscale_join.rc | default(0) != 0
 
-    - name: Apply tailscale prefs when already authenticated (tailscale set — avoids up --reset)
+- name: Enable kernel forwarding for exit node advertisement
+  when: tailscale_advertise_exit_node | default(false) | bool
+  block:
+    - name: Persist IP forwarding sysctl for Tailscale exit node
+      ansible.builtin.copy:
+        dest: /etc/sysctl.d/70-tailscale-forwarding.conf
+        mode: "0644"
+        content: |
+          net.ipv4.ip_forward = 1
+          net.ipv6.conf.all.forwarding = 1
+      register: tailscale_forwarding_sysctl
+
+    - name: Apply IP forwarding sysctl now
       ansible.builtin.command:
-        argv:
+        cmd: sysctl -p /etc/sysctl.d/70-tailscale-forwarding.conf
+      changed_when: tailscale_forwarding_sysctl.changed
+
+- name: Build tailscale set argv (joined nodes — avoids up --reset)
+  when: tailscale_logged_in | bool
+  block:
+    - name: Init tailscale set argv
+      ansible.builtin.set_fact:
+        tailscale_set_argv:
           - tailscale
           - set
-          - "{{ '--accept-routes=' ~ (tailscale_accept_routes | bool | ternary('true', 'false')) }}"
-          - "{{ '--ssh=' ~ (tailscale_enable_ssh_server | default(true) | ternary('true', 'false')) }}"
-      when:
-        - tailscale_auth_key | default("", true) | length > 0
-        - tailscale_logged_in | bool
+
+    - name: Append accept-routes to tailscale set
+      ansible.builtin.set_fact:
+        tailscale_set_argv: >-
+          {{
+            tailscale_set_argv
+            + ['--accept-routes=' + (tailscale_accept_routes | bool | ternary('true', 'false'))]
+          }}
+
+    - name: Append SSH server pref to tailscale set
+      ansible.builtin.set_fact:
+        tailscale_set_argv: >-
+          {{
+            tailscale_set_argv
+            + ['--ssh=' + (tailscale_enable_ssh_server | default(true) | ternary('true', 'false'))]
+          }}
+
+    - name: Append advertise-exit-node to tailscale set
+      ansible.builtin.set_fact:
+        tailscale_set_argv: "{{ tailscale_set_argv + ['--advertise-exit-node'] }}"
+      when: tailscale_advertise_exit_node | default(false) | bool
+
+    - name: Append exit-node to tailscale set
+      ansible.builtin.set_fact:
+        tailscale_set_argv: >-
+          {{
+            tailscale_set_argv
+            + ['--exit-node=' + tailscale_exit_node]
+            + ['--exit-node-allow-lan-access='
+               + (tailscale_exit_node_allow_lan_access | bool | ternary('true', 'false'))]
+          }}
+      when: tailscale_exit_node | default("", true) | length > 0
+
+    - name: Apply tailscale prefs when already authenticated
+      ansible.builtin.command:
+        argv: "{{ tailscale_set_argv }}"
       changed_when: false

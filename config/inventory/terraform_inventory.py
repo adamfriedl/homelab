@@ -111,6 +111,9 @@ def build_inventory(outputs: dict) -> dict:
     }
 
     return {
+        "lab": {
+            "children": ["gcp_lab"],
+        },
         "gcp_lab": {
             "hosts": hosts,
             "vars": {

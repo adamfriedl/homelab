@@ -1,15 +1,15 @@
-# `gcp-lab`
+# homelab
 
-Personal GCP lab repo: **`infra/`** (Terraform) + **`config/`** (Ansible: baseline + optional Tailscale). **Git root is this folder**, so commits include both trees.
+Personal homelab: **`infra/`** (Terraform / GCP) + **`config/`** (Ansible for cloud and home hosts). Tailscale is the mesh between them.
 
-## Layout
+| Path | Purpose |
+|------|---------|
+| **`infra/`** | GCP VPC, VMs, IAP, OS Login — `terraform init`, `plan`, `apply` here |
+| **`config/`** | Ansible converge for **`gcp_lab`** and **`home_lab`** hosts (see **`config/README.md`**) |
 
-| Path        | Purpose |
-|------------|---------|
-| **`infra/`** | Terraform provider, modules (`network`, `vm`), IAP project bits, **`terraform init|plan|apply` run here**. |
-| **`config/`** | Ansible and related bootstrap (see **`config/README.md`**). |
+## Quick start
 
-## Terraform quick start
+**Terraform (GCP):**
 
 ```bash
 cd infra
@@ -18,24 +18,50 @@ terraform init
 terraform plan
 ```
 
-## Repo layout vs “nested git inside `infra/` only”
+**Ansible (after `terraform apply`):**
 
-**`.git` lives at `gcp-lab/`** so Ansible under **`config/`** is tracked in one place. Keeping a **separate** repo only inside **`infra/`** would exclude **`config/`** unless you submodule or symlink—fine for enterprises, clumsy for a small lab.
+```bash
+cd config
+cp inventory/group_vars/gcp_lab/tailscale_secrets.yml.example \
+   inventory/group_vars/gcp_lab/tailscale_secrets.yml   # paste tskey-auth-…
+ansible-playbook site.yml --limit gcp_lab    # cloud only
+ansible-playbook site.yml --limit home_lab   # home only (e.g. tottipi)
+ansible-playbook site.yml                    # everything (laptop on tailnet)
+```
+
+## What's in the lab
+
+| Host | Role | Admin access |
+|------|------|----------------|
+| **`gcp-lab-1`** | Private GCP VM (`e2-micro`, no public IP) | **`gcloud compute ssh --tunnel-through-iap`** |
+| **`tottipi`** | Home Raspberry Pi; future public edge | **`tailscale ssh adam@tottipi`** |
+
+**Network today:**
+
+- **Tailscale** — mesh between home and cloud (peer traffic; no NAT required).
+- **Cloud NAT** — **off** in steady state (`enable_cloud_nat = false`). Saves ~$30/mo.
+- **Bootstrap** — flip NAT on temporarily to `apt install` / join Tailscale on a fresh VM, then turn it off.
+- **Public ingress (planned)** — Cloudflare Tunnel on **`tottipi`**, not open ports or GCP exit nodes.
+
+**Do not** enable a Tailscale **exit node on GCP VMs** — it breaks GCP metadata routing and IAP SSH. See **`config/README.md`**.
+
+## CI
+
+GitHub Actions manages **`gcp_lab`** only (`--limit gcp_lab` via IAP + Workload Identity Federation). **`home_lab`** is converged from your laptop (or a future self-hosted runner on **`tottipi`**).
+
+Tailscale auth key: repository secret **`TAILSCALE_AUTH_KEY`** for CI; same value in local **`tailscale_secrets.yml`** for laptop runs.
+
+## Clone
+
+```bash
+git clone git@github.com:adamfriedl/homelab.git
+cd homelab
+```
+
+## Repo layout note
+
+**`.git` lives at the repo root** so **`infra/`** and **`config/`** stay in one place.
 
 ## Shared VPC snapshot (advanced)
 
-Older two-project layouts may still exist only on **`lab/shared-vpc`** in Git history — paths there may not match this `infra/` tree until rebased/cherry-picked. Default **`main`** is single-project Terraform under **`infra/`**.
-
-## Move-in checklist (from an older `infra/`-only layout)
-
-If you still had an older folder with `.git`:
-
-```bash
-# One-time: lift git to monorepo root (from parent of infra)
-mv ~/path/to/old-infra/.git ~/path/to/gcp-lab/.git
-rm -rf ~/path/to/old-infra   # only after confirming gcp-lab tracks everything you need
-cd ~/path/to/gcp-lab
-git status
-```
-
-If **`gcp-lab`** already has **`infra/`** and no `.git` yet, **`git clone`** your remote into **`gcp-lab`** instead, or run **`git init`** here.
+Older two-project layouts may still exist only on **`lab/shared-vpc`** in Git history. Default **`main`** is single-project Terraform under **`infra/`**.

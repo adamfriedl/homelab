@@ -40,9 +40,15 @@ jobs:
           cat > inventory/ci_static.yml <<'EOF'
           all:
             children:
-              gcp_lab:
-                hosts:
-                  ci-placeholder:
-                    ansible_host: 127.0.0.1
+              lab:
+                children:
+                  gcp_lab:
+                    hosts:
+                      ci-placeholder:
+                        ansible_host: 127.0.0.1
+                  home_lab:
+                    hosts:
+                      ci-placeholder-home:
+                        ansible_host: 127.0.0.1
           EOF
           ansible-playbook site.yml -i inventory/ci_static.yml --syntax-check
