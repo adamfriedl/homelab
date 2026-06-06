@@ -116,3 +116,28 @@ variable "instances" {
     "gcp-lab-1" = {}
   }
 }
+
+variable "enable_github_actions_wif" {
+  description = "Grant GitHub Actions (WIF) permission to impersonate the CI service account."
+  type        = bool
+  default     = true
+}
+
+variable "github_repository" {
+  description = "GitHub repo (owner/name) for WIF bindings. Must match the repo that runs Actions."
+  type        = string
+  default     = "adamfriedl/homelab"
+}
+
+variable "github_wif_pool_id" {
+  description = "Workload Identity Pool ID (segment after workloadIdentityPools/ in GCP_WORKLOAD_IDENTITY_PROVIDER)."
+  type        = string
+  default     = "github"
+}
+
+variable "ci_service_account_email" {
+  description = "CI service account email. Defaults to terraform-ci@PROJECT.iam.gserviceaccount.com."
+  type        = string
+  default     = null
+  nullable    = true
+}
