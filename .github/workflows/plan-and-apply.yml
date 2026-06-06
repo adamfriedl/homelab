@@ -7,6 +7,8 @@
 #   2. WIF pool/provider for this repo → repository secrets:
 #        GCP_WORKLOAD_IDENTITY_PROVIDER
 #        GCP_SERVICE_ACCOUNT
+#      After renaming the GitHub repo, run `terraform apply` in infra/ so github_wif.tf
+#      grants workloadIdentityUser for the new owner/name (see infra/README.md).
 #
 # Repository variables:
 #   GCP_PROJECT_ID          required
@@ -85,6 +87,15 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Verify GCP credentials (state bucket)
+        run: |
+          if ! gcloud storage ls "gs://gcp-lab-tf-state/" >/dev/null 2>&1; then
+            echo "::error::Cannot access Terraform state bucket. If the GitHub repo was renamed, run 'terraform apply' in infra/ to update WIF for the new repository name (see infra/README.md)."
+            exit 1
+          fi
+
       - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "1.9.8"
@@ -125,6 +136,8 @@ jobs:
             echo "zone       = \"${zone}\""
             echo "enable_external_public_ip = false"
             echo "enable_os_login = true"
+            echo "enable_github_actions_wif = true"
+            echo "github_repository = \"${{ github.repository }}\""
             echo "ssh_source_ranges = []"
             printf '%s\n' "iap_ssh_tunnel_members = [$(IFS=,; echo "${iap_members[*]}")]"
             printf '%s\n' "os_login_admin_members = [$(IFS=,; echo "${os_login_members[*]}")]"

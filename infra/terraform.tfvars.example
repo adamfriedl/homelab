@@ -40,7 +40,13 @@ ssh_source_ranges = []
 # iap_ssh_firewall_name     = "gcp-lab-allow-ssh-iap"
 # enable_iap_ssh            = true
 # machine_type              = "e2-micro"
-# boot_disk_image           = "ubuntu-os-cloud/ubuntu-2404-lts"
+# boot_disk_image           = "ubuntu-os-cloud/ubuntu-2204-lts"
+#
+# GitHub Actions WIF — after renaming the repo, set github_repository and apply once:
+# github_repository = "adamfriedl/homelab"
+# enable_github_actions_wif = true
+# manage_github_wif         = false   # pool/provider/SA already exist
+# ci_service_account_email  = "terraform-ci@YOUR_PROJECT_ID.iam.gserviceaccount.com"
 #
 # Multiple VMs — map key is the GCP instance name; {} inherits defaults above.
 # instances = {
