@@ -35,26 +35,3 @@ output "ssh_via_iap_gcloud" {
     )
   }
 }
-
-output "github_actions_wif_owner_principal" {
-  description = "WIF principal for GitHub Actions (owner scope). Verify with: gcloud iam service-accounts get-iam-policy CI_SA"
-  value       = var.enable_github_actions_wif ? "principalSet://iam.googleapis.com/projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${var.github_wif_pool_id}/attribute.repository_owner/${var.github_repository_owner}" : null
-}
-
-output "github_actions_wif_repository_principal" {
-  description = "WIF principal for GitHub Actions (single-repo scope)."
-  value       = var.enable_github_actions_wif && var.github_repository != "" ? "principalSet://iam.googleapis.com/projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${var.github_wif_pool_id}/attribute.repository/${var.github_repository}" : null
-}
-
-output "github_actions_wif_subject_principals" {
-  description = "WIF subject principals (pull_request + main push)."
-  value = [
-    for subject in local.github_wif_subjects :
-    "principal://iam.googleapis.com/projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${var.github_wif_pool_id}/subject/${subject}"
-  ]
-}
-
-output "github_actions_ci_service_account" {
-  description = "Service account email GitHub Actions impersonates."
-  value       = var.enable_github_actions_wif ? coalesce(var.ci_service_account_email, "terraform-ci@${var.project_id}.iam.gserviceaccount.com") : null
-}

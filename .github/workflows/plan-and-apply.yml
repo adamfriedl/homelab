@@ -4,11 +4,8 @@
 # GCP auth (Workload Identity Federation):
 #   1. CI service account (e.g. terraform-ci@PROJECT.iam.gserviceaccount.com) with roles/editor (or tighter),
 #      storage.objectAdmin on state bucket (gcp-lab-tf-state), plus IAP + OS Login (Terraform grants the latter two).
-#   2. WIF pool/provider for this repo → repository secrets:
-#        GCP_WORKLOAD_IDENTITY_PROVIDER
-#        GCP_SERVICE_ACCOUNT
-#      After renaming the GitHub repo, run `terraform apply` in infra/ so github_wif.tf
-#      grants workloadIdentityUser for the new owner/name (see infra/README.md).
+#   2. WIF pool/provider → secrets GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_SERVICE_ACCOUNT
+#      Repo rename: apply infra/github_wif.tf once (see infra/README.md).
 #
 # Repository variables:
 #   GCP_PROJECT_ID          required
@@ -87,39 +84,6 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - uses: google-github-actions/setup-gcloud@v3
-
-      - name: Parse WIF pool id from provider secret
-        id: wif
-        env:
-          WIF_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-        run: |
-          pool_id="${WIF_PROVIDER#*/workloadIdentityPools/}"
-          pool_id="${pool_id%%/*}"
-          if [ -z "${pool_id}" ] || [ "${pool_id}" = "${WIF_PROVIDER}" ]; then
-            echo "Could not parse workload identity pool id from GCP_WORKLOAD_IDENTITY_PROVIDER."
-            exit 1
-          fi
-          echo "pool_id=${pool_id}" >> "${GITHUB_OUTPUT}"
-
-      - name: Verify GCP credentials (state bucket)
-        env:
-          WIF_POOL_ID: ${{ steps.wif.outputs.pool_id }}
-        run: |
-          echo "Parsed WIF pool id from GCP_WORKLOAD_IDENTITY_PROVIDER: ${WIF_POOL_ID}"
-          echo "GitHub event: ${{ github.event_name }}, repository: ${{ github.repository }}"
-          set +e
-          err="$(gcloud storage ls "gs://gcp-lab-tf-state/" 2>&1)"
-          status=$?
-          set -e
-          if [ "${status}" -ne 0 ]; then
-            echo "${err}"
-            echo "::error::CI service account still cannot impersonate for this workflow."
-            echo "::error::Re-apply on the PR branch with the pool id shown above:"
-            echo "::error::  cd infra && terraform apply -var='github_wif_pool_id=${WIF_POOL_ID}'"
-            exit 1
-          fi
-
       - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "1.9.8"
@@ -131,9 +95,17 @@ jobs:
           GCP_ZONE: ${{ vars.GCP_ZONE }}
           IAP_SSH_TUNNEL_MEMBER: ${{ vars.IAP_SSH_TUNNEL_MEMBER }}
           GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          WIF_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
         run: |
           if [ -z "${GCP_PROJECT_ID}" ]; then
             echo "Set repository variable GCP_PROJECT_ID (Settings → Secrets and variables → Actions → Variables)."
+            exit 1
+          fi
+
+          pool_id="${WIF_PROVIDER#*/workloadIdentityPools/}"
+          pool_id="${pool_id%%/*}"
+          if [ -z "${pool_id}" ] || [ "${pool_id}" = "${WIF_PROVIDER}" ]; then
+            echo "Could not parse workload identity pool id from GCP_WORKLOAD_IDENTITY_PROVIDER."
             exit 1
           fi
 
@@ -162,8 +134,7 @@ jobs:
             echo "enable_os_login = true"
             echo "enable_github_actions_wif = true"
             echo "github_repository = \"${{ github.repository }}\""
-            echo "github_repository_owner = \"${{ github.repository_owner }}\""
-            echo "github_wif_pool_id = \"${{ steps.wif.outputs.pool_id }}\""
+            echo "github_wif_pool_id = \"${pool_id}\""
             echo "ssh_source_ranges = []"
             printf '%s\n' "iap_ssh_tunnel_members = [$(IFS=,; echo "${iap_members[*]}")]"
             printf '%s\n' "os_login_admin_members = [$(IFS=,; echo "${os_login_members[*]}")]"

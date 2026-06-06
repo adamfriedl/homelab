@@ -118,43 +118,25 @@ variable "instances" {
 }
 
 variable "enable_github_actions_wif" {
-  description = "Grant GitHub Actions (WIF) permission to impersonate the CI service account. Disable only if CI is unused."
+  description = "Grant GitHub Actions (WIF) permission to impersonate the CI service account."
   type        = bool
   default     = true
 }
 
-variable "manage_github_wif" {
-  description = "Create the GitHub WIF pool, OIDC provider, and terraform-ci service account. Set false when they already exist (typical); only the repository IAM binding is applied."
-  type        = bool
-  default     = false
-}
-
 variable "github_repository" {
-  description = "GitHub repo (owner/name) allowed to impersonate the CI service account via WIF. Must match the repo that runs Actions."
+  description = "GitHub repo (owner/name) for WIF bindings. Must match the repo that runs Actions."
   type        = string
   default     = "adamfriedl/homelab"
 }
 
-variable "github_repository_owner" {
-  description = "GitHub org/user that owns the repo — used in the WIF provider attribute_condition when manage_github_wif is true."
-  type        = string
-  default     = "adamfriedl"
-}
-
 variable "github_wif_pool_id" {
-  description = "Workload Identity Pool ID for GitHub Actions (must match GCP_WORKLOAD_IDENTITY_PROVIDER secret)."
-  type        = string
-  default     = "github"
-}
-
-variable "github_wif_provider_id" {
-  description = "Workload Identity Pool provider ID for GitHub OIDC (must match GCP_WORKLOAD_IDENTITY_PROVIDER secret)."
+  description = "Workload Identity Pool ID (segment after workloadIdentityPools/ in GCP_WORKLOAD_IDENTITY_PROVIDER)."
   type        = string
   default     = "github"
 }
 
 variable "ci_service_account_email" {
-  description = "CI service account email (GCP_SERVICE_ACCOUNT secret). Defaults to terraform-ci@PROJECT.iam.gserviceaccount.com."
+  description = "CI service account email. Defaults to terraform-ci@PROJECT.iam.gserviceaccount.com."
   type        = string
   default     = null
   nullable    = true
