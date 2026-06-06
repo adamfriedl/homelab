@@ -42,10 +42,6 @@ ssh_source_ranges = []
 # machine_type              = "e2-micro"
 # boot_disk_image           = "ubuntu-os-cloud/ubuntu-2204-lts"
 #
-# GitHub Actions WIF (optional — defaults usually suffice after a repo rename):
-# github_wif_pool_id = "github"   # match GCP_WORKLOAD_IDENTITY_PROVIDER
-# github_repository  = "adamfriedl/homelab"
-#
 # Multiple VMs — map key is the GCP instance name; {} inherits defaults above.
 # instances = {
 #   "gcp-lab-instance" = {}

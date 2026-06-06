@@ -44,9 +44,9 @@ variable "ssh_source_ranges" {
 }
 
 variable "enable_cloud_nat" {
-  description = "Regional Cloud NAT so VMs without external IPs reach the internet (APT, Tailscale, etc.). Set false only if you use another egress path."
+  description = "Regional Cloud NAT so VMs without external IPs reach the internet (APT, Tailscale, etc.). Set true temporarily to bootstrap a fresh VM."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_iap_ssh" {
@@ -115,29 +115,4 @@ variable "instances" {
   default = {
     "gcp-lab-1" = {}
   }
-}
-
-variable "enable_github_actions_wif" {
-  description = "Grant GitHub Actions (WIF) permission to impersonate the CI service account."
-  type        = bool
-  default     = true
-}
-
-variable "github_repository" {
-  description = "GitHub repo (owner/name) for WIF bindings. Must match the repo that runs Actions."
-  type        = string
-  default     = "adamfriedl/homelab"
-}
-
-variable "github_wif_pool_id" {
-  description = "Workload Identity Pool ID (segment after workloadIdentityPools/ in GCP_WORKLOAD_IDENTITY_PROVIDER)."
-  type        = string
-  default     = "github"
-}
-
-variable "ci_service_account_email" {
-  description = "CI service account email. Defaults to terraform-ci@PROJECT.iam.gserviceaccount.com."
-  type        = string
-  default     = null
-  nullable    = true
 }
