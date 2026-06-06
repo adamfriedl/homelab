@@ -56,10 +56,45 @@ resource "google_service_account" "terraform_ci" {
   display_name = "Terraform / Ansible CI"
 }
 
-resource "google_service_account_iam_member" "github_actions_wif" {
+locals {
+  github_wif_service_account = var.manage_github_wif ? google_service_account.terraform_ci[0].name : "projects/${data.google_project.current.project_id}/serviceAccounts/${local.ci_service_account_email}"
+
+  # pull_request and push use different OIDC subjects; attribute.* bindings alone miss PR runs
+  # when the pool/provider only maps google.subject, or when ref-scoped conditions apply.
+  github_wif_subjects = var.enable_github_actions_wif && var.github_repository != "" ? [
+    "repo:${var.github_repository}:pull_request",
+    "repo:${var.github_repository}:ref:refs/heads/main",
+  ] : []
+}
+
+moved {
+  from = google_service_account_iam_member.github_actions_wif
+  to   = google_service_account_iam_member.github_actions_wif_repository
+}
+
+# Subject bindings — required for pull_request workflows (and always mapped as google.subject).
+resource "google_service_account_iam_member" "github_actions_wif_subject" {
+  for_each = toset(local.github_wif_subjects)
+
+  service_account_id = local.github_wif_service_account
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principal://iam.googleapis.com/${local.github_wif_pool_name}/subject/${each.value}"
+}
+
+# Owner-level binding survives repo renames (when attribute.repository_owner is mapped).
+resource "google_service_account_iam_member" "github_actions_wif_owner" {
   count = var.enable_github_actions_wif ? 1 : 0
 
-  service_account_id = var.manage_github_wif ? google_service_account.terraform_ci[0].name : "projects/${data.google_project.current.project_id}/serviceAccounts/${local.ci_service_account_email}"
+  service_account_id = local.github_wif_service_account
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${local.github_wif_pool_name}/attribute.repository_owner/${var.github_repository_owner}"
+}
+
+# Optional tighter binding for a single repository (in addition to owner binding).
+resource "google_service_account_iam_member" "github_actions_wif_repository" {
+  count = var.enable_github_actions_wif && var.github_repository != "" ? 1 : 0
+
+  service_account_id = local.github_wif_service_account
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${local.github_wif_pool_name}/attribute.repository/${var.github_repository}"
 }
