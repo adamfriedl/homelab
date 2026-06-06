@@ -21,7 +21,7 @@ With both false, the VM has **no general internet egress**. Tailscale mesh and I
 
 **IAM in `terraform.tfvars`:** include both your user and the CI service account in **`iap_ssh_tunnel_members`** and **`os_login_admin_members`** so Terraform does not remove bindings on apply.
 
-**GitHub Actions WIF:** if you rename the GitHub repo, run **`terraform apply`** once so **`github_wif.tf`** updates CI bindings for the new **`owner/name`**.
+**GitHub Actions WIF:** one-time bootstrap outside CI (see workflow comments). If you rename the repo, update WIF bindings manually or via a local **`terraform apply`** with owner credentials — not from the CI service account.
 
 Use **`terraform.tfvars.example`** as the template (**`terraform.tfvars`** is gitignored).
 

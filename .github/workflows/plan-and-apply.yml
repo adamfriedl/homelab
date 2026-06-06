@@ -5,7 +5,7 @@
 #   1. CI service account (e.g. terraform-ci@PROJECT.iam.gserviceaccount.com) with roles/editor (or tighter),
 #      storage.objectAdmin on state bucket (gcp-lab-tf-state), plus IAP + OS Login (Terraform grants the latter two).
 #   2. WIF pool/provider → secrets GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_SERVICE_ACCOUNT
-#      Repo rename: apply infra/github_wif.tf once (see infra/README.md).
+#      WIF bindings are one-time bootstrap (owner / gcloud), not managed by CI apply.
 #
 # Repository variables:
 #   GCP_PROJECT_ID          required
@@ -95,17 +95,9 @@ jobs:
           GCP_ZONE: ${{ vars.GCP_ZONE }}
           IAP_SSH_TUNNEL_MEMBER: ${{ vars.IAP_SSH_TUNNEL_MEMBER }}
           GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-          WIF_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
         run: |
           if [ -z "${GCP_PROJECT_ID}" ]; then
             echo "Set repository variable GCP_PROJECT_ID (Settings → Secrets and variables → Actions → Variables)."
-            exit 1
-          fi
-
-          pool_id="${WIF_PROVIDER#*/workloadIdentityPools/}"
-          pool_id="${pool_id%%/*}"
-          if [ -z "${pool_id}" ] || [ "${pool_id}" = "${WIF_PROVIDER}" ]; then
-            echo "Could not parse workload identity pool id from GCP_WORKLOAD_IDENTITY_PROVIDER."
             exit 1
           fi
 
@@ -131,10 +123,8 @@ jobs:
             echo "region     = \"${region}\""
             echo "zone       = \"${zone}\""
             echo "enable_external_public_ip = false"
+            echo "enable_cloud_nat = false"
             echo "enable_os_login = true"
-            echo "enable_github_actions_wif = true"
-            echo "github_repository = \"${{ github.repository }}\""
-            echo "github_wif_pool_id = \"${pool_id}\""
             echo "ssh_source_ranges = []"
             printf '%s\n' "iap_ssh_tunnel_members = [$(IFS=,; echo "${iap_members[*]}")]"
             printf '%s\n' "os_login_admin_members = [$(IFS=,; echo "${os_login_members[*]}")]"
