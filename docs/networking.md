@@ -15,18 +15,19 @@ Single source of truth for how **`gcp-lab-1`**, **`tottipi`**, Tailscale, and Cl
                         ▼
                    ┌─────────┐
                    │gcp-lab-1│  private GCP VM, no public IP, no Cloud NAT
+                   │         │  exit-node → tottipi (outbound + control plane)
                    └────┬────┘
-                        │ IAP (admin SSH only)
+                        │ Tailscale SSH (admin, steady state)
                         ▼
                     your laptop
 ```
 
 | Host / path | Steady state |
 |-------------|----------------|
-| **`gcp-lab-1`** | Private `e2-micro`; admin via IAP SSH only |
-| **`tottipi`** | Home Pi; admin via Tailscale SSH; future public edge |
+| **`gcp-lab-1`** | Private `e2-micro`; **`tailscale ssh`** for admin (exit node on) |
+| **`tottipi`** | Home Pi; **`tailscale ssh`**; future public edge |
 | **GCP ↔ home (mesh)** | Tailscale peer traffic — no Cloud NAT |
-| **GCP outbound internet** | Via **`tottipi`** (`tailscale_exit_node: tottipi`) |
+| **GCP outbound internet** | Via **`tottipi`** (`tailscale_exit_node: tottipi`) — **required** |
 | **Cloud NAT** | **Off** (`enable_cloud_nat = false`) — saves ~$30/mo |
 | **Public ingress (planned)** | Cloudflare Tunnel on **`tottipi`**, not open GCP ports |
 
@@ -41,9 +42,11 @@ Two different Tailscale flags — do not conflate them.
 | **`tailscale_advertise_exit_node`** | **`tottipi`** only | “Others may route internet through me.” |
 | **`tailscale_exit_node: tottipi`** | **`gcp_lab`** | “Route *my* outbound through **`tottipi`**.” |
 
-**Never** set **`tailscale_advertise_exit_node`** on GCP — breaks metadata routing and admin SSH paths.
+**Never** set **`tailscale_advertise_exit_node`** on GCP — breaks GCP metadata routing badly.
 
-**Do** set **`tailscale_exit_node: tottipi`** on GCP. Without it, turning Cloud NAT off leaves **`tailscaled`** with no path to `controlplane.tailscale.com` and the node shows **offline** in the admin console.
+**Do** set **`tailscale_exit_node: tottipi`** on GCP. Without it, turning Cloud NAT off leaves **`tailscaled`** with no path to `controlplane.tailscale.com` and the node shows **offline**.
+
+**Tradeoff:** with exit node on, **IAP SSH does not work reliably** on GCE (see Admin SSH). We accept that — steady-state admin is **`tailscale ssh`**, not IAP.
 
 | File (under `config/inventory/group_vars/`) | Purpose |
 |---------------------------------------------|---------|
@@ -55,7 +58,7 @@ Approve **`tottipi`** as an exit node in [Tailscale Machines](https://login.tail
 
 ## Bootstrap (fresh GCP VM)
 
-The VM has **no internet** until Cloud NAT is on. **`tottipi`** must already be on the tailnet and advertising an exit node.
+The VM has **no internet** until Cloud NAT is on. **`tottipi`** must already be on the tailnet, advertising an exit node, and **approved** in admin.
 
 ```bash
 # 0. Home first (if not already converged)
@@ -68,35 +71,50 @@ cd infra && terraform apply
 # 2. Join tailnet + set exit-node=tottipi (gcp_lab/tailscale.yml)
 cd ../config && ansible-playbook site.yml --limit gcp_lab
 
-# 3. Verify (via IAP — do not skip)
-gcloud compute ssh gcp-lab-1 --zone=YOUR_ZONE --tunnel-through-iap -- \
+# 3. Verify (tailscale ssh — IAP may already be broken once exit-node is set)
+tailscale ssh YOUR_OS_LOGIN_USER@gcp-lab-1 -- \
   'sudo tailscale status; curl -s --max-time 5 -o /dev/null -w "controlplane: %{http_code}\n" https://controlplane.tailscale.com'
 
-# Expect: node Online, tottipi listed as active exit node, controlplane HTTP 200/301/etc.
+# Expect: node online, tottipi active as exit node, controlplane HTTP 2xx/3xx.
 
 # 4. Steady state
 # infra/terraform.tfvars → enable_cloud_nat = false
 cd ../infra && terraform apply
+
+# 5. Re-verify over tailnet only (no IAP, no NAT)
+tailscale ssh YOUR_OS_LOGIN_USER@gcp-lab-1 -- 'sudo tailscale status | head -8'
 ```
+
+Use the OS Login username from **`gcloud compute os-login describe-profile`** (e.g. `ajfriedl_gmail_com`).
 
 ### If the node is offline after step 4
 
-You turned NAT off before exit-node was applied. Recovery:
+You turned NAT off before exit-node was applied, or **`tottipi`** was down/unapproved. Recovery:
 
 1. `enable_cloud_nat = true` → `terraform apply`
 2. `ansible-playbook site.yml --limit gcp_lab`
-3. Verify (step 3 above)
+3. Verify (step 3 above, via **`tailscale ssh`**)
 4. `enable_cloud_nat = false` → `terraform apply`
 
-Remove stale Tailscale machine entries (e.g. old **`gcp-lab-1`**) in the admin console after a VM rebuild.
+Remove stale Tailscale machine entries in the admin console after a VM rebuild.
 
 ## Admin SSH
 
-| Method | **`gcp-lab-1`** | Notes |
-|--------|-----------------|-------|
-| **`gcloud compute ssh --tunnel-through-iap`** | ✅ Use this | Inbound to private IP:22; works with exit-node set |
-| **Console SSH (browser button)** | ⚠️ Unreliable | Exit-node routing can block metadata — [tailscale#11740](https://github.com/tailscale/tailscale/issues/11740) |
-| **`tailscale ssh`** | ❌ Avoid | Unreliable on cloud nodes |
+Exit node sends GCP-bound traffic (including **169.254.169.254** metadata) through Tailscale paths Google does not expect. The kernel logs **martian source** errors; **IAP TCP forwarding to `:22` fails** even when **`sshd` is listening**.
+
+| Method | When | **`gcp-lab-1`** |
+|--------|------|-----------------|
+| **`tailscale ssh USER@gcp-lab-1`** | **Steady state** (exit node on) | ✅ **Use this** |
+| **`gcloud compute ssh --tunnel-through-iap`** | Bootstrap/recovery **before** exit node is set; or temporarily clear exit node | ✅ Only then |
+| **Console SSH (browser button)** | — | ❌ Unreliable with exit node — [tailscale#11740](https://github.com/tailscale/tailscale/issues/11740) |
+
+Example steady-state admin:
+
+```bash
+tailscale ssh ajfriedl_gmail_com@gcp-lab-1
+```
+
+**CI note:** GitHub Actions converges **`gcp_lab`** via **IAP** today — **broken in steady state**. Plan: self-hosted runner on **`tottipi`** + SSH over tailnet. Sketch: **`docs/ci-self-hosted-runner.md`**.
 
 ## Terraform knobs
 
@@ -109,10 +127,14 @@ Template: **`infra/terraform.tfvars.example`**. Include your user and CI SA in *
 
 ## GCP gotchas
 
-**Reverse-path filtering:** GCP sets `rp_filter=1` (strict). Using an exit node can break egress until relaxed. Set `rp_filter=2` in `/etc/sysctl.d/60-gce-network-security.conf` before enabling exit node — see [Tailscale GCP reference](https://tailscale.com/docs/reference/reference-architectures/gcp). Not yet automated in Ansible.
+**Exit node vs IAP:** Using **`tottipi`** as exit node is required for NAT-off operation. It breaks IAP — do not rely on **`gcloud compute ssh --tunnel-through-iap`** while exit node is enabled.
+
+**Reverse-path filtering:** GCP sets `rp_filter=1` (strict). Exit nodes can worsen routing issues. Tailscale recommends `rp_filter=2` in `/etc/sysctl.d/60-gce-network-security.conf` — see [Tailscale GCP reference](https://tailscale.com/docs/reference/reference-architectures/gcp). Not yet automated in Ansible.
 
 ## Related docs
 
 - **`config/README.md`** — Ansible inventory, OS Login, playbook commands
 - **`infra/README.md`** — Terraform workflow, WIF
+- **`docs/ci-self-hosted-runner.md`** — sketch: CI converge via runner on `tottipi`
+- **`docs/tottipi-services.md`** — what runs on the Pi
 - **`README.md`** — repo overview
