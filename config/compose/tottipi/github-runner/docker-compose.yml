@@ -1,0 +1,15 @@
+# Self-hosted GitHub Actions runner for homelab CI converge.
+# Uses host networking so jobs reach gcp-lab-1 over the Pi's tailnet routes.
+
+services:
+  github-runner:
+    image: myoung34/github-runner:latest
+    container_name: homelab-github-runner
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      DISABLE_AUTOMATIC_DEREGISTRATION: "true"
+    volumes:
+      - ./data:/runner
+    restart: unless-stopped

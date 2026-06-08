@@ -34,7 +34,7 @@ Hosts, egress, and SSH: **`docs/networking.md`**.
 | Job | Runner | Notes |
 |-----|--------|-------|
 | Terraform plan/apply | GitHub **`ubuntu-latest`** + WIF | Unchanged |
-| Ansible **`gcp_lab`** converge | **Planned:** self-hosted on **`tottipi`** | IAP broken in steady state (exit node on GCP) |
+| Ansible **`gcp_lab`** converge | Self-hosted on **`tottipi`** | IAP broken in steady state (exit node on GCP) |
 
 See **`docs/ci-self-hosted-runner.md`**. **`tottipi`** services and deps: **`docs/tottipi-services.md`**. Networking: **`docs/networking.md`**.
 

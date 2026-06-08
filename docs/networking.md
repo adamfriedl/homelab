@@ -114,7 +114,7 @@ Example steady-state admin:
 tailscale ssh ajfriedl_gmail_com@gcp-lab-1
 ```
 
-**CI note:** GitHub Actions converges **`gcp_lab`** via **IAP** today — **broken in steady state**. Plan: self-hosted runner on **`tottipi`** + SSH over tailnet. Sketch: **`docs/ci-self-hosted-runner.md`**.
+**CI note:** GitHub Actions converges **`gcp_lab`** from a **self-hosted runner on `tottipi`** over tailnet SSH (IAP is broken with exit node on). See **`docs/ci-self-hosted-runner.md`**.
 
 ## Terraform knobs
 
@@ -135,6 +135,6 @@ Template: **`infra/terraform.tfvars.example`**. Include your user and CI SA in *
 
 - **`config/README.md`** — Ansible inventory, OS Login, playbook commands
 - **`infra/README.md`** — Terraform workflow, WIF
-- **`docs/ci-self-hosted-runner.md`** — sketch: CI converge via runner on `tottipi`
+- **`docs/ci-self-hosted-runner.md`** — CI converge via runner on `tottipi`
 - **`docs/tottipi-services.md`** — what runs on the Pi
 - **`README.md`** — repo overview

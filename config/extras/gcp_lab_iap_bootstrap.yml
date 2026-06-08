@@ -1,0 +1,15 @@
+---
+# Bootstrap / recovery only — NAT on, exit node not yet set (IAP works).
+#   ansible-playbook site.yml --limit gcp_lab -e @extras/gcp_lab_iap_bootstrap.yml
+#
+# Steady state uses inventory/group_vars/gcp_lab/tailnet_ssh.yml instead.
+
+ansible_host: "{{ inventory_hostname }}"
+
+ansible_ssh_common_args: >-
+  -o IdentitiesOnly=yes
+  -o StrictHostKeyChecking=accept-new
+  -o ControlMaster=auto
+  -o ControlPersist=300
+  -o ControlPath=/tmp/ansible-iap-%C
+  -o ProxyCommand="gcloud compute start-iap-tunnel {{ inventory_hostname }} 22 --listen-on-stdin --zone={{ gcp_zone }} --project={{ gcp_project_id }}"

@@ -21,19 +21,19 @@ Internet (home ISP)
   exit-node egress                    Terraform plan/apply (WIF)
   tailnet SSH admin                   (no tottipi required)
        ▲
-       │ tailnet SSH :22 (planned: CI converge)
+       │ tailnet SSH :22 (CI converge via github-runner)
        │
-  (planned) github-runner on tottipi
+  github-runner on tottipi (Docker, host network)
 ```
 
-If **`tottipi`** or its exit node is down, **`gcp-lab-1`** loses outbound/control-plane path (NAT off) and planned CI converge stops.
+If **`tottipi`** or its exit node is down, **`gcp-lab-1`** loses outbound/control-plane path (NAT off) and CI converge stops.
 
 ## Service catalog
 
 | Service | Status | How run | Managed in git | Required for |
 |---------|--------|---------|----------------|--------------|
 | **`tailscaled`** | ✅ Running | `apt` / Ansible | `config/roles/tailscale`, `home_lab/tailscale.yml` | Mesh, exit node, `tailscale ssh` |
-| **`github-runner`** | 📋 Planned | Docker (`network_mode: host`) | `docs/ci-self-hosted-runner.md` (compose TBD) | CI Ansible `--limit gcp_lab` |
+| **`github-runner`** | ✅ Ansible-managed | Docker (`network_mode: host`) | `config/compose/tottipi/github-runner/`, `roles/github_runner` | CI Ansible `--limit gcp_lab` |
 | **metrics collector** | 📋 Planned | cron on host | `docs/observability-warehouse.md` Phase 3 | BQ `host_metrics` |
 | **Cloudflare Tunnel** | 📋 Future | TBD | — | Public ingress to tailnet backends |
 
@@ -50,13 +50,15 @@ If **`tottipi`** or its exit node is down, **`gcp-lab-1`** loses outbound/contro
 
 See **`docs/networking.md`** § Exit node.
 
-## `github-runner` (planned)
+## `github-runner`
 
 | | |
 |--|--|
 | **Why** | Hosted GH Actions uses IAP for Ansible; IAP breaks when **`gcp-lab-1`** has exit node on |
 | **Labels** | `homelab`, `tottipi` |
 | **Network** | Docker **`network_mode: host`** — uses host Tailscale routes to reach `gcp-lab-1` |
+| **Compose** | **`config/compose/tottipi/github-runner/`** |
+| **Converge** | `ansible-playbook site.yml --limit home_lab` (after one-time GitHub registration) |
 | **Design** | **`docs/ci-self-hosted-runner.md`** |
 
 Do not `docker run` the runner by hand without adding a row here and a compose file in the repo.

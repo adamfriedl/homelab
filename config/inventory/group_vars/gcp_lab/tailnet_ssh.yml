@@ -1,0 +1,6 @@
+# Steady-state: SSH to gcp-lab-1 over the tailnet (exit node safe).
+# Bootstrap with NAT (before exit node): -e @extras/gcp_lab_iap_bootstrap.yml
+ansible_host: gcp-lab-1
+ansible_ssh_common_args: >-
+  -o IdentitiesOnly=yes
+  -o StrictHostKeyChecking=accept-new

@@ -19,6 +19,9 @@
 # Local one-time OS Login (after first terraform apply with os_login_admin_members):
 #   gcloud compute os-login ssh-keys add --key-file=~/.ssh/google_compute_engine.pub
 #   gcloud compute os-login describe-profile --format='value(posixAccounts[0].username)'
+#
+# Ansible converge runs on self-hosted runner tottipi (tailnet SSH to gcp-lab-1).
+# Register runner first: config/compose/tottipi/github-runner/README.md
 
 name: Plan and apply
 
@@ -145,7 +148,7 @@ jobs:
     name: Ansible converge
     needs: plan-or-apply
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, homelab, tottipi]
     steps:
       - uses: actions/checkout@v5
 
@@ -171,16 +174,6 @@ jobs:
       - name: Install Ansible
         run: pip install ansible-core
 
-      - name: Read Terraform outputs for IAP tunnel
-        id: tfout
-        working-directory: infra
-        run: |
-          {
-            echo "project_id=$(terraform output -raw project_id)"
-            echo "zone=$(terraform output -raw zone)"
-            echo "instance_name=$(terraform output -json instance_names | jq -r '.[0]')"
-          } >> "${GITHUB_OUTPUT}"
-
       - name: OS Login SSH key for CI service account
         id: oslogin
         env:
@@ -205,36 +198,14 @@ jobs:
           echo "ansible_user=${ansible_user}" >> "${GITHUB_OUTPUT}"
           echo "ssh_private_key_file=${HOME}/.ssh/ci_oslogin" >> "${GITHUB_OUTPUT}"
 
-      - name: Start IAP tunnel (background)
-        run: |
-          gcloud compute start-iap-tunnel "${{ steps.tfout.outputs.instance_name }}" 22 \
-            --local-host-port=127.0.0.1:8222 \
-            --zone="${{ steps.tfout.outputs.zone }}" \
-            --project="${{ steps.tfout.outputs.project_id }}" &
-          echo $! > /tmp/iap-tunnel.pid
-
-          for _ in $(seq 1 30); do
-            if nc -z 127.0.0.1 8222 2>/dev/null; then
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "IAP tunnel did not become ready on 127.0.0.1:8222"
-          exit 1
-
       - name: ansible-playbook site.yml
         working-directory: config
         env:
           TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
         run: |
-          trap 'kill "$(cat /tmp/iap-tunnel.pid 2>/dev/null)" 2>/dev/null || true' EXIT
-
-          cat > /tmp/ci-ssh.yml <<EOF
+          cat > /tmp/ci-oslogin.yml <<EOF
           ansible_user: ${{ steps.oslogin.outputs.ansible_user }}
           ansible_ssh_private_key_file: ${{ steps.oslogin.outputs.ssh_private_key_file }}
-          ansible_host: 127.0.0.1
-          ansible_port: 8222
-          ansible_ssh_common_args: "-o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
           EOF
 
           extra=()
@@ -242,4 +213,4 @@ jobs:
             extra+=(-e "tailscale_auth_key=${TAILSCALE_AUTH_KEY}")
           fi
 
-          ansible-playbook site.yml -e @/tmp/ci-ssh.yml --limit gcp_lab "${extra[@]}"
+          ansible-playbook site.yml -e @/tmp/ci-oslogin.yml --limit gcp_lab "${extra[@]}"

@@ -1,0 +1,81 @@
+---
+- name: Ensure runner directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ github_runner_deploy_dir }}"
+    - "{{ github_runner_deploy_dir }}/data"
+
+- name: Install docker-compose.yml
+  ansible.builtin.copy:
+    src: "{{ github_runner_compose_src }}/docker-compose.yml"
+    dest: "{{ github_runner_deploy_dir }}/docker-compose.yml"
+    mode: "0644"
+
+- name: Install .env.example
+  ansible.builtin.copy:
+    src: "{{ github_runner_compose_src }}/.env.example"
+    dest: "{{ github_runner_deploy_dir }}/.env.example"
+    mode: "0644"
+
+- name: Check for local runner .env on control node
+  ansible.builtin.stat:
+    path: "{{ github_runner_compose_src }}/.env"
+  register: github_runner_local_env
+  delegate_to: localhost
+  become: false
+
+- name: Check whether runner is registered
+  ansible.builtin.stat:
+    path: "{{ github_runner_deploy_dir }}/data/.runner"
+  register: github_runner_registered
+
+- name: Install runner .env from control node (first registration only)
+  ansible.builtin.copy:
+    src: "{{ github_runner_compose_src }}/.env"
+    dest: "{{ github_runner_deploy_dir }}/.env"
+    mode: "0600"
+  no_log: true
+  when:
+    - github_runner_local_env.stat.exists
+    - not github_runner_registered.stat.exists
+
+- name: Seed .env from example when missing on host
+  ansible.builtin.copy:
+    src: "{{ github_runner_compose_src }}/.env.example"
+    dest: "{{ github_runner_deploy_dir }}/.env"
+    mode: "0600"
+    force: false
+
+- name: Check registration token before first register
+  ansible.builtin.command:
+    cmd: grep -qE '^RUNNER_TOKEN=.+' {{ github_runner_deploy_dir }}/.env
+  register: github_runner_token
+  changed_when: false
+  failed_when: false
+  when: not github_runner_registered.stat.exists
+
+- name: Fail with registration instructions when token missing
+  ansible.builtin.fail:
+    msg: >-
+      GitHub runner is not registered on {{ inventory_hostname }}.
+      Set RUNNER_TOKEN in {{ github_runner_compose_src }}/.env (gitignored) on your laptop
+      or in {{ github_runner_deploy_dir }}/.env on the host, then re-run
+      ansible-playbook site.yml --limit home_lab.
+      Token: GitHub → Settings → Actions → Runners → New self-hosted runner.
+  when:
+    - not github_runner_registered.stat.exists
+    - github_runner_token.rc | default(1) != 0
+
+- name: Ensure GitHub runner container is running
+  ansible.builtin.command:
+    cmd: docker compose up -d --pull missing
+    chdir: "{{ github_runner_deploy_dir }}"
+  register: github_runner_up
+  changed_when: >-
+    'Started' in github_runner_up.stdout
+    or 'Created' in github_runner_up.stdout
+    or 'Recreated' in github_runner_up.stdout
+    or 'Pulled' in github_runner_up.stdout
