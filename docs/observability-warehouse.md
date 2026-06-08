@@ -6,20 +6,7 @@ Plan for a free-tier BigQuery “poor man’s” data platform: billing + CI + h
 
 - Learn DevOps/data patterns: IaC, batch loads, partitioned BQ tables, CI instrumentation
 - Stay on GCP free tier (~$0 at lab scale)
-- Fit the **current network model** (NAT off, no exit node on GCP VMs, `tottipi` as home worker)
-
-## Current lab context (as of 2026-06)
-
-| Host | Role | Admin | Egress |
-|------|------|-------|--------|
-| `gcp-lab-1` | Private GCP VM (`e2-micro`, no public IP) | `gcloud compute ssh --tunnel-through-iap` | **No general internet** (`enable_cloud_nat = false`) |
-| `tottipi` | Home Pi; future public edge | `tailscale ssh adam@tottipi` | Home ISP |
-
-- Tailscale mesh works without NAT (peer traffic).
-- **Never** set Tailscale exit node on GCP VMs — breaks metadata routing and IAP SSH.
-- Ansible: `gcp_lab` (dynamic inventory) + `home_lab` (static). CI uses `--limit gcp_lab` only.
-- Tailscale auth key: local `config/inventory/group_vars/gcp_lab/tailscale_secrets.yml` + GitHub `TAILSCALE_AUTH_KEY` (keep in sync).
-- Bootstrap fresh GCP VM: temporary `enable_cloud_nat = true` → Ansible/Tailscale join → NAT off.
+- Fit the lab network model — see **`docs/networking.md`** (`tottipi` collector; `gcp-lab-1` scrape target over tailnet)
 
 ## Architecture
 
@@ -137,10 +124,9 @@ v1: simple shell/Python collector on `tottipi`; scrape `gcp-lab-1` via tailnet (
 
 ## Deferred / dropped
 
-- Tailscale exit node on GCP for egress
+- GCP networking patterns that conflict with **`docs/networking.md`** (e.g. advertise exit node on GCP, Cloud NAT in steady state)
 - Collectors on `gcp-lab-1` pushing to GCS/BQ
 - Dataflow, Pub/Sub log pipeline (v1)
-- Cloud NAT in steady state (bootstrap only)
 
 ## Optional later
 
@@ -167,8 +153,9 @@ After Phase 3:
 
 - One dashboard or query: host disk/CPU for both machines + monthly spend
 
-## Related repo docs
+## Related docs
 
-- `README.md` — homelab overview, NAT bootstrap
-- `config/README.md` — Ansible groups, IAP, Tailscale keys
-- `infra/README.md` — Terraform networking defaults
+- **`docs/networking.md`** — Tailscale, NAT, bootstrap, SSH
+- **`README.md`** — homelab overview
+- **`config/README.md`** — Ansible groups, secrets
+- **`infra/README.md`** — Terraform workflow

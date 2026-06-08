@@ -44,7 +44,7 @@ variable "ssh_source_ranges" {
 }
 
 variable "enable_cloud_nat" {
-  description = "Regional Cloud NAT so VMs without external IPs reach the internet (APT, Tailscale, etc.). Set true temporarily to bootstrap a fresh VM."
+  description = "Regional Cloud NAT for bootstrap only. Steady state: false. See docs/networking.md#bootstrap-fresh-gcp-vm."
   type        = bool
   default     = false
 }

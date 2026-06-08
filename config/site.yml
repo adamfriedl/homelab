@@ -6,7 +6,6 @@
   roles:
     - role: common
 
-    # gcp_lab: tailscale_auth_key in tailscale_secrets.yml. home_lab: advertise exit node, etc.
     - role: tailscale
       when: >-
         (tailscale_auth_key | default("", true) | length > 0)

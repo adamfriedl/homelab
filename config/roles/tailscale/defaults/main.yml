@@ -16,10 +16,9 @@ tailscale_enable_ssh_server: true
 # ACL tags, comma-separated — must be allowed by your ACLs, e.g. "tag:gcp-lab".
 tailscale_advertise_tags: ''
 
-# Offer this machine as a tailnet exit node (home_lab). Requires ACL/admin approval.
+# Offer as exit node (home_lab only). Route via peer: gcp_lab/tailscale.yml. Policy: docs/networking.md
 tailscale_advertise_exit_node: false
 
-# Route outbound internet via another tailnet peer (gcp_lab), e.g. "tottipi".
 tailscale_exit_node: ''
 
 # Allow local RFC1918 access while using an exit node.
