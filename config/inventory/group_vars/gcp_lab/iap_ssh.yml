@@ -1,6 +1,6 @@
 # gcp_project_id and gcp_zone come from Terraform (inventory/terraform_inventory.py).
 
-# IAP tunnel: Ansible opens SSH via gcloud (same mechanic as compute ssh --tunnel-through-iap).
+# IAP tunnel for Ansible/CI. Steady-state human admin on gcp_lab: tailscale ssh (see docs/networking.md).
 # ControlMaster reuses one IAP tunnel for the whole play — without it, every task spawns gcloud again.
 ansible_ssh_common_args: >-
   -o IdentitiesOnly=yes

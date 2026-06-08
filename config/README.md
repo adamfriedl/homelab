@@ -2,12 +2,13 @@
 
 Ansible converges **GCP VMs** (Terraform under **`infra/`**) and **home-lab hosts** (static inventory). Both sit in the **`lab`** group and run from **`site.yml`**.
 
-**Networking (Tailscale, NAT, bootstrap, SSH):** **`docs/networking.md`**
+**Networking (Tailscale, NAT, bootstrap, SSH):** **`docs/networking.md`**  
+**`tottipi` services:** **`docs/tottipi-services.md`**
 
-| Group | Hosts | Reachable from | CI |
-|-------|-------|----------------|-----|
-| **`gcp_lab`** | `gcp-lab-1`, … | IAP (`gcloud`) | Yes |
-| **`home_lab`** | `tottipi`, … | Tailscale / LAN | No (laptop or future self-hosted runner) |
+| Group | Hosts | Reachable from (steady state) | CI |
+|-------|-------|-------------------------------|-----|
+| **`gcp_lab`** | `gcp-lab-1`, … | **`tailscale ssh`** (see **`docs/networking.md`**) | Planned: runner on **`tottipi`** (see **`docs/ci-self-hosted-runner.md`**) |
+| **`home_lab`** | `tottipi`, … | Tailscale / LAN | No (laptop); services: **`docs/tottipi-services.md`** |
 
 ## Inventory
 

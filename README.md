@@ -7,6 +7,8 @@ Personal homelab: **`infra/`** (Terraform / GCP) + **`config/`** (Ansible for cl
 | **`infra/`** | GCP VPC, VMs, IAP, OS Login — `terraform init`, `plan`, `apply` here |
 | **`config/`** | Ansible converge for **`gcp_lab`** and **`home_lab`** hosts (see **`config/README.md`**) |
 | **`docs/networking.md`** | **Networking (Tailscale, NAT, bootstrap, SSH)** |
+| **`docs/tottipi-services.md`** | **Services on `tottipi` (inventory + dependencies)** |
+| **`docs/ci-self-hosted-runner.md`** | **CI Ansible converge via self-hosted runner** |
 
 ## Quick start
 
@@ -29,7 +31,14 @@ Hosts, egress, and SSH: **`docs/networking.md`**.
 
 ## CI
 
-GitHub Actions manages **`gcp_lab`** only (`--limit gcp_lab` via IAP + Workload Identity Federation). **`home_lab`** is converged from your laptop (or a future self-hosted runner on **`tottipi`**).
+| Job | Runner | Notes |
+|-----|--------|-------|
+| Terraform plan/apply | GitHub **`ubuntu-latest`** + WIF | Unchanged |
+| Ansible **`gcp_lab`** converge | **Planned:** self-hosted on **`tottipi`** | IAP broken in steady state (exit node on GCP) |
+
+See **`docs/ci-self-hosted-runner.md`**. **`tottipi`** services and deps: **`docs/tottipi-services.md`**. Networking: **`docs/networking.md`**.
+
+**`home_lab`** converge: laptop only today (`ansible-playbook site.yml --limit home_lab`).
 
 Tailscale auth key: **`docs/networking.md`**
 
