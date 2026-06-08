@@ -132,7 +132,7 @@ v1: simple shell/Python collector on `tottipi`; scrape `gcp-lab-1` via tailnet (
 
 - **Private Google Access** on VPC if `gcp-lab-1` must call `*.googleapis.com` without NAT
 - **Cloudflare Tunnel** on `tottipi` (public edge; same box as collector)
-- **Self-hosted GitHub runner** on `tottipi` (then more CI can touch home)
+- **Self-hosted GitHub runner** on `tottipi` — see **`docs/ci-self-hosted-runner.md`**, inventory **`docs/tottipi-services.md`**
 - Join billing to custom labels as Terraform grows
 
 ## Open decisions (resolve in PR 1 if easy)
@@ -156,6 +156,8 @@ After Phase 3:
 ## Related docs
 
 - **`docs/networking.md`** — Tailscale, NAT, bootstrap, SSH
+- **`docs/tottipi-services.md`** — what runs on the Pi (inventory)
+- **`docs/ci-self-hosted-runner.md`** — CI converge via runner on `tottipi`
 - **`README.md`** — homelab overview
 - **`config/README.md`** — Ansible groups, secrets
 - **`infra/README.md`** — Terraform workflow
