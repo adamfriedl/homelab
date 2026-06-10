@@ -28,6 +28,14 @@ outputs:
 runs:
   using: composite
   steps:
+    - uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python_version }}
+
+    - name: Point gcloud at supported Python
+      shell: bash
+      run: echo "CLOUDSDK_PYTHON=$(command -v python3)" >> "${GITHUB_ENV}"
+
     - uses: google-github-actions/auth@v3
       with:
         workload_identity_provider: ${{ inputs.workload_identity_provider }}
@@ -43,10 +51,6 @@ runs:
       shell: bash
       working-directory: infra
       run: terraform init -input=false
-
-    - uses: actions/setup-python@v6
-      with:
-        python-version: ${{ inputs.python_version }}
 
     - name: Install Ansible
       shell: bash

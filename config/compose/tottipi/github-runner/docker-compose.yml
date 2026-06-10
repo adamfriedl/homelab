@@ -10,6 +10,8 @@ services:
       - .env
     environment:
       DISABLE_AUTOMATIC_DEREGISTRATION: "true"
+      # Persist registration in ./data across restarts (required by myoung34/github-runner).
+      CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner
     volumes:
       - ./data:/runner
     restart: unless-stopped
