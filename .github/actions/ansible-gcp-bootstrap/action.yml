@@ -1,0 +1,78 @@
+name: Ansible GCP bootstrap
+description: WIF auth, terraform init for inventory, Ansible install, ephemeral OS Login SSH key.
+
+inputs:
+  workload_identity_provider:
+    description: GCP workload identity provider for WIF
+    required: true
+  service_account:
+    description: GCP service account email for WIF and OS Login
+    required: true
+  terraform_version:
+    description: Terraform version to install
+    required: false
+    default: "1.9.8"
+  python_version:
+    description: Python version for Ansible
+    required: false
+    default: "3.12"
+
+outputs:
+  ansible_user:
+    description: OS Login POSIX username for the CI service account
+    value: ${{ steps.oslogin.outputs.ansible_user }}
+  ssh_private_key_file:
+    description: Path to the ephemeral OS Login private key on the runner
+    value: ${{ steps.oslogin.outputs.ssh_private_key_file }}
+
+runs:
+  using: composite
+  steps:
+    - uses: google-github-actions/auth@v3
+      with:
+        workload_identity_provider: ${{ inputs.workload_identity_provider }}
+        service_account: ${{ inputs.service_account }}
+
+    - uses: google-github-actions/setup-gcloud@v3
+
+    - uses: hashicorp/setup-terraform@v4
+      with:
+        terraform_version: ${{ inputs.terraform_version }}
+
+    - name: terraform init (inventory outputs)
+      shell: bash
+      working-directory: infra
+      run: terraform init -input=false
+
+    - uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python_version }}
+
+    - name: Install Ansible
+      shell: bash
+      run: pip install ansible-core
+
+    - name: OS Login SSH key for CI service account
+      id: oslogin
+      shell: bash
+      env:
+        GCP_SERVICE_ACCOUNT: ${{ inputs.service_account }}
+      run: |
+        if [ -z "${GCP_SERVICE_ACCOUNT}" ]; then
+          echo "GCP service account is required for OS Login SSH."
+          exit 1
+        fi
+
+        mkdir -p "${HOME}/.ssh"
+        ssh-keygen -t rsa -f "${HOME}/.ssh/ci_oslogin" -N "" -q
+
+        gcloud compute os-login ssh-keys add --key-file="${HOME}/.ssh/ci_oslogin.pub"
+
+        ansible_user="$(gcloud compute os-login describe-profile --format='value(posixAccounts[0].username)')"
+        if [ -z "${ansible_user}" ]; then
+          echo "OS Login profile has no POSIX username after ssh-keys add."
+          exit 1
+        fi
+
+        echo "ansible_user=${ansible_user}" >> "${GITHUB_OUTPUT}"
+        echo "ssh_private_key_file=${HOME}/.ssh/ci_oslogin" >> "${GITHUB_OUTPUT}"

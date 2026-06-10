@@ -1,5 +1,4 @@
-# Plan on PR / weekly; apply + Ansible converge on merge to main.
-# Ansible syntax-check only → .github/workflows/ansible.yml
+# Plan on PR / weekly; apply + Ansible validate + converge on merge to main.
 #
 # GCP auth (Workload Identity Federation):
 #   1. CI service account (e.g. terraform-ci@PROJECT.iam.gserviceaccount.com) with roles/editor (or tighter),
@@ -20,7 +19,8 @@
 #   gcloud compute os-login ssh-keys add --key-file=~/.ssh/google_compute_engine.pub
 #   gcloud compute os-login describe-profile --format='value(posixAccounts[0].username)'
 #
-# Ansible converge runs on self-hosted runner tottipi (tailnet SSH to gcp-lab-1).
+# Ansible validate (+ converge on main) runs as one job on tottipi — bootstrap once,
+# reuse the same ephemeral OS Login key for ping and site.yml.
 # Register runner first: config/compose/tottipi/github-runner/README.md
 
 name: Plan and apply
@@ -32,11 +32,13 @@ on:
       - "infra/**"
       - "config/**"
       - ".github/workflows/plan-and-apply.yml"
+      - ".github/actions/ansible-gcp-bootstrap/**"
   pull_request:
     paths:
       - "infra/**"
       - "config/**"
       - ".github/workflows/plan-and-apply.yml"
+      - ".github/actions/ansible-gcp-bootstrap/**"
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
@@ -144,70 +146,62 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: terraform apply -auto-approve -input=false
 
-  converge:
-    name: Ansible converge
+  ansible:
+    name: Ansible validate and converge
     needs: plan-or-apply
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: needs.plan-or-apply.result == 'success'
     runs-on: [self-hosted, homelab, tottipi]
     steps:
       - uses: actions/checkout@v5
 
-      - uses: google-github-actions/auth@v3
+      - name: Bootstrap GCP auth, inventory, and OS Login key
+        id: bootstrap
+        uses: ./.github/actions/ansible-gcp-bootstrap
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - uses: google-github-actions/setup-gcloud@v3
-
-      - uses: hashicorp/setup-terraform@v4
-        with:
-          terraform_version: "1.9.8"
-
-      - name: terraform init (inventory outputs)
-        working-directory: infra
-        run: terraform init -input=false
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Install Ansible
-        run: pip install ansible-core
-
-      - name: OS Login SSH key for CI service account
-        id: oslogin
-        env:
-          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Write OS Login extra vars
         run: |
-          if [ -z "${GCP_SERVICE_ACCOUNT}" ]; then
-            echo "GCP_SERVICE_ACCOUNT secret is required for Ansible converge."
-            exit 1
-          fi
+          cat > /tmp/ci-oslogin.yml <<EOF
+          ansible_user: ${{ steps.bootstrap.outputs.ansible_user }}
+          ansible_ssh_private_key_file: ${{ steps.bootstrap.outputs.ssh_private_key_file }}
+          EOF
 
-          mkdir -p "${HOME}/.ssh"
-          ssh-keygen -t rsa -f "${HOME}/.ssh/ci_oslogin" -N "" -q
+      - name: Verify real inventory
+        working-directory: config
+        run: |
+          set -euo pipefail
+          ansible-inventory --graph lab
+          python3 <<'PY'
+          import json
+          import subprocess
 
-          gcloud compute os-login ssh-keys add --key-file="${HOME}/.ssh/ci_oslogin.pub"
+          inv = json.loads(subprocess.check_output(["ansible-inventory", "--list"], text=True))
+          gcp_hosts = inv.get("gcp_lab", {}).get("hosts", [])
+          home_hosts = inv.get("home_lab", {}).get("hosts", [])
+          if not gcp_hosts:
+              raise SystemExit("gcp_lab has no hosts (terraform inventory empty?)")
+          if "tottipi" not in home_hosts:
+              raise SystemExit(f"home_lab missing tottipi (got {home_hosts!r})")
+          print(f"gcp_lab: {gcp_hosts}")
+          print(f"home_lab: {home_hosts}")
+          PY
 
-          ansible_user="$(gcloud compute os-login describe-profile --format='value(posixAccounts[0].username)')"
-          if [ -z "${ansible_user}" ]; then
-            echo "OS Login profile has no POSIX username after ssh-keys add."
-            exit 1
-          fi
+      - name: ansible-playbook syntax-check
+        working-directory: config
+        run: ansible-playbook site.yml --syntax-check
 
-          echo "ansible_user=${ansible_user}" >> "${GITHUB_OUTPUT}"
-          echo "ssh_private_key_file=${HOME}/.ssh/ci_oslogin" >> "${GITHUB_OUTPUT}"
+      - name: Ping gcp_lab over tailnet
+        working-directory: config
+        run: ansible gcp_lab -m ping -e @/tmp/ci-oslogin.yml
 
       - name: ansible-playbook site.yml
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: config
         env:
           TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
         run: |
-          cat > /tmp/ci-oslogin.yml <<EOF
-          ansible_user: ${{ steps.oslogin.outputs.ansible_user }}
-          ansible_ssh_private_key_file: ${{ steps.oslogin.outputs.ssh_private_key_file }}
-          EOF
-
           extra=()
           if [ -n "${TAILSCALE_AUTH_KEY}" ]; then
             extra+=(-e "tailscale_auth_key=${TAILSCALE_AUTH_KEY}")
