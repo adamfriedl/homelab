@@ -13,7 +13,7 @@ inputs:
     required: false
     default: "1.9.8"
   python_version:
-    description: Python for Ansible/gcloud (3.10 fits arm64 on Ubuntu 20.04 runner image; use 3.12 with ubuntu-jammy)
+    description: Unused; kept for compatibility. Bootstrap uses system python3 (ubuntu-jammy runner).
     required: false
     default: "3.10"
 
@@ -28,13 +28,17 @@ outputs:
 runs:
   using: composite
   steps:
-    - uses: actions/setup-python@v6
-      with:
-        python-version: ${{ inputs.python_version }}
-
-    - name: Point gcloud at supported Python
+    - name: Setup Python for gcloud and Ansible
       shell: bash
-      run: echo "CLOUDSDK_PYTHON=$(command -v python3)" >> "${GITHUB_ENV}"
+      run: |
+        set -euo pipefail
+        python3 -c 'import sys; assert sys.version_info >= (3, 9), (
+          f"Python 3.9+ required for gcloud; got {sys.version}. "
+          "Use runner image myoung34/github-runner:ubuntu-jammy on tottipi."
+        )'
+        echo "CLOUDSDK_PYTHON=$(command -v python3)" >> "${GITHUB_ENV}"
+        python3 -m pip install --user ansible-core
+        echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
 
     - uses: google-github-actions/auth@v3
       with:
@@ -51,10 +55,6 @@ runs:
       shell: bash
       working-directory: infra
       run: terraform init -input=false
-
-    - name: Install Ansible
-      shell: bash
-      run: pip install ansible-core
 
     - name: OS Login SSH key for CI service account
       id: oslogin
