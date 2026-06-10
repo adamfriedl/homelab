@@ -38,6 +38,15 @@ runs:
         workload_identity_provider: ${{ inputs.workload_identity_provider }}
         service_account: ${{ inputs.service_account }}
 
+    - name: Activate gcloud account for OS Login
+      shell: bash
+      env:
+        GCP_SERVICE_ACCOUNT: ${{ inputs.service_account }}
+      run: |
+        set -euo pipefail
+        gcloud auth login --cred-file="${GOOGLE_APPLICATION_CREDENTIALS}" --brief
+        gcloud config set account "${GCP_SERVICE_ACCOUNT}"
+
     - name: terraform init (inventory outputs)
       shell: bash
       working-directory: infra

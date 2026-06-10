@@ -20,6 +20,12 @@
     dest: "{{ github_runner_deploy_dir }}/Dockerfile"
     mode: "0644"
 
+- name: Install runner .dockerignore
+  ansible.builtin.copy:
+    src: "{{ github_runner_compose_src }}/.dockerignore"
+    dest: "{{ github_runner_deploy_dir }}/.dockerignore"
+    mode: "0644"
+
 - name: Install .env.example
   ansible.builtin.copy:
     src: "{{ github_runner_compose_src }}/.env.example"
