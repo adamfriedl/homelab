@@ -155,6 +155,17 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Preflight MagicDNS for gcp-lab-1
+        run: |
+          set -euo pipefail
+          host="gcp-lab-1"
+          echo "resolv.conf:"
+          cat /etc/resolv.conf
+          if ! timeout 5 getent ahostsv4 "${host}"; then
+            echo "::error::Cannot resolve ${host} via MagicDNS. On tottipi: enable tailscale_accept_dns, ensure compose mounts host /etc/resolv.conf, then ./restart.sh"
+            exit 1
+          fi
+
       - name: Bootstrap GCP auth, inventory, and OS Login key
         id: bootstrap
         uses: ./.github/actions/ansible-gcp-bootstrap
@@ -167,6 +178,10 @@ jobs:
           cat > /tmp/ci-oslogin.yml <<EOF
           ansible_user: ${{ steps.bootstrap.outputs.ansible_user }}
           ansible_ssh_private_key_file: ${{ steps.bootstrap.outputs.ssh_private_key_file }}
+          ansible_ssh_common_args: >-
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=accept-new
+            -o ConnectTimeout=15
           EOF
 
       - name: Verify real inventory
@@ -195,6 +210,7 @@ jobs:
 
       - name: Ping gcp_lab over tailnet
         working-directory: config
+        timeout-minutes: 3
         run: ansible gcp_lab -m ping -e @/tmp/ci-oslogin.yml
 
       - name: ansible-playbook site.yml
