@@ -2,6 +2,18 @@
 
 Docker runner with **`network_mode: host`** so CI jobs use the Pi's Tailscale routes to SSH to **`gcp-lab-1`**.
 
+## Image
+
+Built locally from **`Dockerfile`** on top of `myoung34/github-runner:ubuntu-jammy`. Pre-installs **gcloud**, **Node 20**, **Terraform**, and **Ansible** so CI jobs do not bootstrap tools each run.
+
+Ansible runs **`docker compose up -d --build`**. Rebuild after changing **`Dockerfile`**:
+
+```bash
+cd /opt/homelab/github-runner
+sudo docker compose build --no-cache
+sudo docker compose up -d
+```
+
 ## One-time registration
 
 1. GitHub → **Settings → Actions → Runners → New self-hosted runner** → copy the registration token.
@@ -40,7 +52,7 @@ Use when GitHub removed the runner, you see **session already exists**, or **reg
    sudo rm -rf data/          # not data/* — dotfiles (.runner) survive data/*
    sudo mkdir data
    sudo nano .env             # set RUNNER_TOKEN=…
-   sudo docker compose up -d
+   sudo docker compose up -d --build
    sudo docker logs homelab-github-runner --tail 30 -f
    ```
 
@@ -48,7 +60,7 @@ Use when GitHub removed the runner, you see **session already exists**, or **reg
 
    ```bash
    sudo sed -i 's/^RUNNER_TOKEN=.*/RUNNER_TOKEN=/' .env
-   sudo docker compose up -d
+   sudo docker compose up -d --build
    ```
 
 Use **`sudo docker compose`** — Ansible deploys **`.env`** as root-owned `0600`.

@@ -14,6 +14,12 @@
     dest: "{{ github_runner_deploy_dir }}/docker-compose.yml"
     mode: "0644"
 
+- name: Install runner Dockerfile
+  ansible.builtin.copy:
+    src: "{{ github_runner_compose_src }}/Dockerfile"
+    dest: "{{ github_runner_deploy_dir }}/Dockerfile"
+    mode: "0644"
+
 - name: Install .env.example
   ansible.builtin.copy:
     src: "{{ github_runner_compose_src }}/.env.example"
@@ -71,11 +77,12 @@
 
 - name: Ensure GitHub runner container is running
   ansible.builtin.command:
-    cmd: docker compose up -d --pull missing
+    cmd: docker compose up -d --build
     chdir: "{{ github_runner_deploy_dir }}"
   register: github_runner_up
   changed_when: >-
     'Started' in github_runner_up.stdout
     or 'Created' in github_runner_up.stdout
     or 'Recreated' in github_runner_up.stdout
-    or 'Pulled' in github_runner_up.stdout
+    or 'Built' in github_runner_up.stdout
+    or 'Building' in github_runner_up.stdout
