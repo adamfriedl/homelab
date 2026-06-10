@@ -7,6 +7,9 @@ tailscale_auth_key: ''
 # If true, node accepts subnets/routes advertised by other tailnet peers.
 tailscale_accept_routes: false
 
+# If true, use Tailscale MagicDNS (required on tottipi for CI runner to resolve gcp-lab-1).
+tailscale_accept_dns: false
+
 # Optional Tailscale HTTPS DNS name suffix (omit to use GCP instance name automatically).
 tailscale_hostname: ''
 

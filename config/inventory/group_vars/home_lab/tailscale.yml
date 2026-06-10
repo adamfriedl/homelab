@@ -1,1 +1,2 @@
 tailscale_advertise_exit_node: true
+tailscale_accept_dns: true

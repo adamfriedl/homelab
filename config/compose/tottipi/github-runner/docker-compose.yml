@@ -15,4 +15,6 @@ services:
       CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner
     volumes:
       - ./data:/runner
+      # Host resolv.conf has Tailscale MagicDNS (100.100.100.100); Docker would inject LAN DNS otherwise.
+      - /etc/resolv.conf:/etc/resolv.conf:ro
     restart: unless-stopped

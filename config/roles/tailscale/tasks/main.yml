@@ -93,6 +93,7 @@
           - tailscale
           - up
           - "{{ '--accept-routes=' ~ (tailscale_accept_routes | bool | ternary('true', 'false')) }}"
+          - "{{ '--accept-dns=' ~ (tailscale_accept_dns | bool | ternary('true', 'false')) }}"
       when: tailscale_auth_key | default("", true) | length > 0
 
     - name: Append Tailscale SSH server (tailscale ssh)
@@ -205,6 +206,14 @@
           {{
             tailscale_set_argv
             + ['--accept-routes=' + (tailscale_accept_routes | bool | ternary('true', 'false'))]
+          }}
+
+    - name: Append accept-dns to tailscale set
+      ansible.builtin.set_fact:
+        tailscale_set_argv: >-
+          {{
+            tailscale_set_argv
+            + ['--accept-dns=' + (tailscale_accept_dns | bool | ternary('true', 'false'))]
           }}
 
     - name: Append SSH server pref to tailscale set
