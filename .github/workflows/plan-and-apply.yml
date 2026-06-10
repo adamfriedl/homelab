@@ -150,6 +150,7 @@ jobs:
     name: Ansible validate and converge
     needs: plan-or-apply
     if: needs.plan-or-apply.result == 'success'
+    timeout-minutes: 20
     runs-on: [self-hosted, homelab, tottipi]
     steps:
       - uses: actions/checkout@v5

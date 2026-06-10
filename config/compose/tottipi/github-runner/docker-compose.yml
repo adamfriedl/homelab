@@ -6,6 +6,7 @@ services:
     build: .
     image: homelab-github-runner:local
     container_name: homelab-github-runner
+    stop_grace_period: 60s
     network_mode: host
     env_file:
       - .env

@@ -26,6 +26,12 @@
     dest: "{{ github_runner_deploy_dir }}/.dockerignore"
     mode: "0644"
 
+- name: Install runner restart script
+  ansible.builtin.copy:
+    src: "{{ github_runner_compose_src }}/restart.sh"
+    dest: "{{ github_runner_deploy_dir }}/restart.sh"
+    mode: "0755"
+
 - name: Install .env.example
   ansible.builtin.copy:
     src: "{{ github_runner_compose_src }}/.env.example"

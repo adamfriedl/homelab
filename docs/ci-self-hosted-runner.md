@@ -57,7 +57,7 @@ Do **not** run `tailscaled` only inside the runner container — host networking
 
 3. Confirm runner online in GitHub; remove **`RUNNER_TOKEN`** from `.env` on `tottipi` (state persists in **`data/`**, including dotfiles like **`.runner`**).
 
-**Recovery:** if registration breaks, see **`config/compose/tottipi/github-runner/README.md#re-register-recovery`** — wipe with **`sudo rm -rf data/`** (not **`data/*`**).
+**Recovery:** session conflicts or registration deleted → **`README.md#re-register-recovery`**. Routine restarts → **`restart.sh`** (avoid `docker compose restart`).
 
 ## Ansible SSH (`gcp_lab`)
 

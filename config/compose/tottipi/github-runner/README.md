@@ -38,6 +38,19 @@ sudo docker logs homelab-github-runner --tail 20
 
 Logs should show **Listening for Jobs**. GitHub → **Settings → Actions → Runners** → **Idle**.
 
+## Restart (routine)
+
+Persisted registration requires `DISABLE_AUTOMATIC_DEREGISTRATION=true` — the runner keeps `./data` but cannot tell GitHub it left on a hard stop. **`docker compose restart` often causes "session already exists"** and jobs stuck queued.
+
+Use the restart script instead:
+
+```bash
+cd /opt/homelab/github-runner
+sudo ./restart.sh
+```
+
+Or manually: `docker compose stop -t 30`, wait ~15s, `docker compose up -d`.
+
 ## Re-register (recovery)
 
 Use when GitHub removed the runner, you see **session already exists**, or **registration has been deleted from the server**.
