@@ -3,7 +3,8 @@
 
 services:
   github-runner:
-    image: myoung34/github-runner:latest
+    # Pin jammy (22.04); :latest is focal (20.04) and limits setup-python on arm64.
+    image: myoung34/github-runner:ubuntu-jammy
     container_name: homelab-github-runner
     network_mode: host
     env_file:

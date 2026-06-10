@@ -13,9 +13,9 @@ inputs:
     required: false
     default: "1.9.8"
   python_version:
-    description: Python version for Ansible
+    description: Python for Ansible/gcloud (3.10 fits arm64 on Ubuntu 20.04 runner image; use 3.12 with ubuntu-jammy)
     required: false
-    default: "3.12"
+    default: "3.10"
 
 outputs:
   ansible_user:
