@@ -12,10 +12,6 @@ inputs:
     description: Terraform version to install
     required: false
     default: "1.9.8"
-  python_version:
-    description: Unused; kept for compatibility. Bootstrap uses system python3 (ubuntu-jammy runner).
-    required: false
-    default: "3.10"
 
 outputs:
   ansible_user:
@@ -34,8 +30,9 @@ runs:
         set -euo pipefail
         python3 -c 'import sys; assert sys.version_info >= (3, 9), (
           f"Python 3.9+ required for gcloud; got {sys.version}. "
-          "Use runner image myoung34/github-runner:ubuntu-jammy on tottipi."
+          "Runner image must be myoung34/github-runner:ubuntu-jammy (not :latest/focal)."
         )'
+        echo "Using $(command -v python3) ($(python3 --version))"
         echo "CLOUDSDK_PYTHON=$(command -v python3)" >> "${GITHUB_ENV}"
         python3 -m pip install --user ansible-core
         echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"

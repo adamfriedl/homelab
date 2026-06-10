@@ -55,7 +55,9 @@ Do **not** run `tailscaled` only inside the runner container — host networking
    cd config && ansible-playbook site.yml --limit home_lab
    ```
 
-3. Confirm runner online in GitHub; remove **`RUNNER_TOKEN`** from `.env` (state persists in **`data/`** on `tottipi`).
+3. Confirm runner online in GitHub; remove **`RUNNER_TOKEN`** from `.env` on `tottipi` (state persists in **`data/`**, including dotfiles like **`.runner`**).
+
+**Recovery:** if registration breaks, see **`config/compose/tottipi/github-runner/README.md#re-register-recovery`** — wipe with **`sudo rm -rf data/`** (not **`data/*`**).
 
 ## Ansible SSH (`gcp_lab`)
 
