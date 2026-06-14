@@ -1,6 +1,8 @@
-# Terraform (`infra/`)
+# Terraform (`infra/`) — platform
 
-Run Terraform **from this directory**:
+Provisions GCP **resources**: network, VM, BigQuery datasets and raw tables, IAM.
+
+Does **not** contain Airflow DAGs or pipeline SQL — those live in **`pipelines/`** (see **`docs/repo-layout.md`**).
 
 ```bash
 cd infra
@@ -10,4 +12,9 @@ terraform plan
 
 **Networking:** **`docs/networking.md`**. **CI variables:** **`docs/ci.md`**.
 
-See repository **`README.md`** for the full homelab layout.
+After apply, note BigQuery outputs:
+
+```bash
+terraform output bigquery_dataset_id
+terraform output bigquery_raw_film_permits_table
+```

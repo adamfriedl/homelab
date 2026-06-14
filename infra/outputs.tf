@@ -35,3 +35,13 @@ output "ssh_via_iap_gcloud" {
     )
   }
 }
+
+output "bigquery_dataset_id" {
+  description = "Homelab BigQuery dataset ID."
+  value       = module.bigquery.dataset_id
+}
+
+output "bigquery_raw_film_permits_table" {
+  description = "Fully qualified raw film permits table for Airflow loads."
+  value       = module.bigquery.raw_film_permits_table_id
+}

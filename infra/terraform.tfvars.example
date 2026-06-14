@@ -19,6 +19,18 @@ os_login_admin_members = [
   # "serviceAccount:terraform-ci@YOUR_PROJECT_ID.iam.gserviceaccount.com",
 ]
 
+# BigQuery homelab dataset (NYC Open Data + observability).
+# CI sets these from IAP_SSH_TUNNEL_MEMBER + terraform-ci SA (see docs/ci.md).
+# For local-only applies, add the same principals here:
+bigquery_data_editor_members = [
+  "user:YOU@example.com",
+  # "serviceAccount:terraform-ci@YOUR_PROJECT_ID.iam.gserviceaccount.com",
+]
+bigquery_job_user_members = [
+  "user:YOU@example.com",
+  # "serviceAccount:terraform-ci@YOUR_PROJECT_ID.iam.gserviceaccount.com",
+]
+
 # Typical IAP-only stance: disable public IPs and tighten direct-Internet SSH.
 enable_external_public_ip = false
 

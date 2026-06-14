@@ -116,3 +116,27 @@ variable "instances" {
     "gcp-lab-1" = {}
   }
 }
+
+variable "bigquery_dataset_id" {
+  description = "BigQuery dataset for homelab analytics (NYC Open Data pipelines, observability tables)."
+  type        = string
+  default     = "homelab"
+}
+
+variable "bigquery_location" {
+  description = "BigQuery dataset location."
+  type        = string
+  default     = "US"
+}
+
+variable "bigquery_data_editor_members" {
+  description = "IAM members with BigQuery dataEditor on the homelab dataset."
+  type        = list(string)
+  default     = []
+}
+
+variable "bigquery_job_user_members" {
+  description = "IAM members with project-level bigquery.jobUser (run queries and load jobs)."
+  type        = list(string)
+  default     = []
+}

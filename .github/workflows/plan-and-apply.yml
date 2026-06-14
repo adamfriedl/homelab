@@ -91,16 +91,19 @@ jobs:
 
           iap_members=()
           os_login_members=()
+          bq_members=()
 
           if [ -n "${IAP_SSH_TUNNEL_MEMBER}" ]; then
             iap_members+=("\"${IAP_SSH_TUNNEL_MEMBER}\"")
             os_login_members+=("\"${IAP_SSH_TUNNEL_MEMBER}\"")
+            bq_members+=("\"${IAP_SSH_TUNNEL_MEMBER}\"")
           fi
 
           if [ -n "${GCP_SERVICE_ACCOUNT}" ]; then
             sa_member="\"serviceAccount:${GCP_SERVICE_ACCOUNT}\""
             iap_members+=("${sa_member}")
             os_login_members+=("${sa_member}")
+            bq_members+=("${sa_member}")
           fi
 
           {
@@ -109,6 +112,8 @@ jobs:
             echo "zone       = \"${zone}\""
             printf '%s\n' "iap_ssh_tunnel_members = [$(IFS=,; echo "${iap_members[*]}")]"
             printf '%s\n' "os_login_admin_members = [$(IFS=,; echo "${os_login_members[*]}")]"
+            printf '%s\n' "bigquery_data_editor_members = [$(IFS=,; echo "${bq_members[*]}")]"
+            printf '%s\n' "bigquery_job_user_members = [$(IFS=,; echo "${bq_members[*]}")]"
           } > terraform.tfvars
 
       - name: terraform init
