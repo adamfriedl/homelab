@@ -38,7 +38,7 @@ variable "firewall_name" {
 }
 
 variable "ssh_source_ranges" {
-  description = "CIDR blocks allowed to SSH VMs from the public Internet. Use [] together with IAP (private IP VMs require IAP or Tailscale)."
+  description = "CIDR blocks allowed to SSH VMs from the public Internet. Use [] for IAP-only private VMs."
   type        = list(string)
   default     = []
 }

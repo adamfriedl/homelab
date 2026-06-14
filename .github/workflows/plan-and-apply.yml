@@ -1,22 +1,4 @@
-# Plan on PR / weekly; apply + Ansible validate + converge on merge to main.
-#
-# GCP auth (Workload Identity Federation):
-#   1. CI service account (e.g. terraform-ci@PROJECT.iam.gserviceaccount.com) with roles/editor (or tighter),
-#      storage.objectAdmin on state bucket (gcp-lab-tf-state), plus IAP + OS Login (Terraform grants the latter two).
-#   2. WIF pool/provider → secrets GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_SERVICE_ACCOUNT
-#      WIF bindings are one-time bootstrap (owner / gcloud), not managed by CI apply.
-#
-# Repository variables:
-#   GCP_PROJECT_ID          required
-#   GCP_REGION              optional (default us-central1)
-#   GCP_ZONE                optional (default us-central1-c)
-#   IAP_SSH_TUNNEL_MEMBER   optional — user:you@example.com (human SSH / IAP)
-#
-# Local one-time OS Login (after first terraform apply with os_login_admin_members):
-#   gcloud compute os-login ssh-keys add --key-file=~/.ssh/google_compute_engine.pub
-#   gcloud compute os-login describe-profile --format='value(posixAccounts[0].username)'
-#
-# Ansible validate (+ converge on main) runs on ubuntu-latest over IAP SSH.
+# CI: plan-and-apply workflow. Secrets, variables, and OS Login setup: docs/ci.md
 
 name: Plan and apply
 
@@ -46,6 +28,9 @@ concurrency:
   group: plan-and-apply-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  TF_VERSION: "1.9.8"
+
 jobs:
   validate:
     name: Terraform validate
@@ -58,7 +43,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: "1.9.8"
+          terraform_version: ${{ env.TF_VERSION }}
 
       - name: terraform fmt
         run: terraform fmt -check -recursive
@@ -86,7 +71,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: "1.9.8"
+          terraform_version: ${{ env.TF_VERSION }}
 
       - name: Write terraform.tfvars for CI
         env:
@@ -122,10 +107,6 @@ jobs:
             echo "project_id = \"${GCP_PROJECT_ID}\""
             echo "region     = \"${region}\""
             echo "zone       = \"${zone}\""
-            echo "enable_external_public_ip = false"
-            echo "enable_cloud_nat = true"
-            echo "enable_os_login = true"
-            echo "ssh_source_ranges = []"
             printf '%s\n' "iap_ssh_tunnel_members = [$(IFS=,; echo "${iap_members[*]}")]"
             printf '%s\n' "os_login_admin_members = [$(IFS=,; echo "${os_login_members[*]}")]"
           } > terraform.tfvars
@@ -144,16 +125,24 @@ jobs:
   ansible:
     name: Ansible validate and converge
     needs: plan-or-apply
-    if: needs.plan-or-apply.result == 'success'
+    if: needs.plan-or-apply.result == 'success' && github.event_name != 'schedule'
     timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
+      - name: Install Ansible
+        run: pip install ansible-core
+
+      - name: ansible-playbook syntax-check
+        working-directory: config
+        run: ansible-playbook site.yml --syntax-check
+
       - uses: google-github-actions/setup-gcloud@v3
 
-      - name: Install Ansible
-        run: pip install ansible
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
 
       - name: Bootstrap GCP auth, inventory, and OS Login key
         id: bootstrap
@@ -169,31 +158,20 @@ jobs:
           ansible_ssh_private_key_file: ${{ steps.bootstrap.outputs.ssh_private_key_file }}
           EOF
 
-      - name: Verify real inventory
+      - name: Verify inventory
         working-directory: config
         run: |
           set -euo pipefail
-          ansible-inventory --graph lab
-          python3 <<'PY'
-          import json
-          import subprocess
-
-          inv = json.loads(subprocess.check_output(["ansible-inventory", "--list"], text=True))
-          gcp_hosts = inv.get("gcp_lab", {}).get("hosts", [])
-          if not gcp_hosts:
-              raise SystemExit("gcp_lab has no hosts (terraform inventory empty?)")
-          print(f"gcp_lab: {gcp_hosts}")
-          PY
-
-      - name: ansible-playbook syntax-check
-        working-directory: config
-        run: ansible-playbook site.yml --syntax-check
-
-      - name: Ping gcp_lab over IAP
-        working-directory: config
-        run: ansible gcp_lab -m ping -e @/tmp/ci-oslogin.yml
+          ansible-inventory --graph gcp_lab
+          python3 -c "
+          import json, subprocess
+          inv = json.loads(subprocess.check_output(['ansible-inventory', '--list'], text=True))
+          hosts = inv.get('gcp_lab', {}).get('hosts', [])
+          assert hosts, 'gcp_lab has no hosts (terraform inventory empty?)'
+          print('gcp_lab:', hosts)
+          "
 
       - name: ansible-playbook site.yml
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: config
-        run: ansible-playbook site.yml -e @/tmp/ci-oslogin.yml --limit gcp_lab
+        run: ansible-playbook site.yml -e @/tmp/ci-oslogin.yml

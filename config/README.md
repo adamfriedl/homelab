@@ -1,20 +1,10 @@
 # `config/` — Ansible
 
-Ansible converges **GCP VMs** provisioned by Terraform under **`infra/`**. Inventory is dynamic from **`terraform output -json`**.
+Ansible converges **GCP VMs** from Terraform. Inventory is dynamic via **`terraform output -json`**.
 
-**Networking (Cloud NAT, IAP, SSH):** **`docs/networking.md`**
+**Networking:** **`docs/networking.md`** · **CI:** **`docs/ci.md`**
 
-## Inventory
-
-```bash
-export GCP_LAB_TERRAFORM_DIR=/absolute/path/to/infra   # optional override
-ansible-inventory --list --yaml
-ansible-inventory --graph gcp_lab
-```
-
-Hosts land in group **`gcp_lab`** (child of **`lab`** in the dynamic inventory script).
-
-## One-time wiring
+## One-time setup
 
 After **`terraform apply`**:
 
@@ -23,29 +13,23 @@ gcloud compute os-login ssh-keys add --key-file=~/.ssh/google_compute_engine.pub
 gcloud compute os-login describe-profile --format='value(posixAccounts[0].username)'
 ```
 
-Set **`gcp_lab_ansible_user`** in **`inventory/group_vars/gcp_lab/ssh_common.yml`**.
+Set **`ansible_user`** in **`inventory/group_vars/gcp_lab/ssh_common.yml`** to match your OS Login username.
 
 ## Run
 
 ```bash
-ansible-playbook site.yml              # all gcp_lab hosts
-ansible-playbook site.yml --limit gcp_lab
+ansible-playbook site.yml
 ansible gcp_lab -m ping
+ansible-inventory --graph gcp_lab
 ```
-
-CI runs the same converge on merge to **`main`** (see **`docs/ci.md`**).
 
 ## Layout
 
 | Path | Role |
 |------|------|
-| **`ansible.cfg`** | Dynamic Terraform inventory |
-| **`inventory/terraform_inventory.py`** | **`gcp_lab`** from Terraform outputs |
-| **`inventory/group_vars/gcp_lab/ssh_common.yml`** | OS Login user + default key path |
-| **`inventory/group_vars/gcp_lab/iap_ssh.yml`** | IAP SSH (`ProxyCommand`) |
-| **`site.yml`** | Entry playbook |
-| **`roles/common`** | Baseline sanity (`uptime`) |
+| **`inventory/terraform_inventory.py`** | Dynamic **`gcp_lab`** hosts from Terraform |
+| **`inventory/group_vars/gcp_lab/ssh_common.yml`** | OS Login user + SSH key |
+| **`inventory/group_vars/gcp_lab/iap_ssh.yml`** | IAP `ProxyCommand` |
+| **`site.yml`** | Converge playbook (`uptime` sanity check today) |
 
-## What converge does today
-
-**`site.yml`** runs the **`common`** role only: confirm the host is reachable over IAP and print uptime. Add roles here as you install software on **`gcp-lab-1`**.
+Add tasks or roles to **`site.yml`** as you install software on **`gcp-lab-1`**.

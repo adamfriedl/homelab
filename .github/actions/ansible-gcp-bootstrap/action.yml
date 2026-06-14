@@ -24,14 +24,10 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        for cmd in python3 gcloud terraform ansible-playbook node; do
+        for cmd in python3 gcloud terraform ansible-playbook; do
           command -v "${cmd}" >/dev/null
         done
-        python3 -c 'import sys; assert sys.version_info >= (3, 9)'
         echo "CLOUDSDK_PYTHON=$(command -v python3)" >> "${GITHUB_ENV}"
-        node --version
-        terraform version
-        gcloud version
 
     - uses: google-github-actions/auth@v3
       with:

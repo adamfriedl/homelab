@@ -3,5 +3,13 @@
   hosts: gcp_lab
   gather_facts: true
   become: true
-  roles:
-    - role: common
+  tasks:
+    - name: Sanity check reachable host
+      ansible.builtin.command: uptime
+      register: uptime_out
+      changed_when: false
+
+    - name: Show host summary
+      ansible.builtin.debug:
+        msg: >-
+          OK on {{ ansible_host | default(inventory_hostname) }} — {{ uptime_out.stdout }}
