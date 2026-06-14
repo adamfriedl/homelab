@@ -80,5 +80,5 @@ Use **`sudo docker compose`** — Ansible deploys **`.env`** as root-owned `0600
 
 ## Related
 
-- **`docs/ci-self-hosted-runner.md`** — CI workflow and tailnet SSH
+- **`docs/ci-self-hosted-runner.md`** — CI over IAP (runner here is optional/legacy)
 - **`docs/tottipi-services.md`** — service catalog

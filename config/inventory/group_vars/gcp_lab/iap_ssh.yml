@@ -1,9 +1,4 @@
----
-# Bootstrap / recovery only — NAT on, exit node not yet set (IAP works).
-#   ansible-playbook site.yml --limit gcp_lab -e @extras/gcp_lab_iap_bootstrap.yml
-#
-# Steady state uses inventory/group_vars/gcp_lab/tailnet_ssh.yml instead.
-
+# Steady-state: SSH to gcp-lab-1 via IAP (Cloud NAT provides egress; no Tailscale).
 ansible_host: "{{ inventory_hostname }}"
 
 ansible_ssh_common_args: >-

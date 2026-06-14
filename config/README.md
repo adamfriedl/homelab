@@ -2,12 +2,12 @@
 
 Ansible converges **GCP VMs** (Terraform under **`infra/`**) and **home-lab hosts** (static inventory). Both sit in the **`lab`** group and run from **`site.yml`**.
 
-**Networking (Tailscale, NAT, bootstrap, SSH):** **`docs/networking.md`**  
+**Networking (Cloud NAT, IAP, SSH):** **`docs/networking.md`**  
 **`tottipi` services:** **`docs/tottipi-services.md`**
 
 | Group | Hosts | Reachable from (steady state) | CI |
 |-------|-------|-------------------------------|-----|
-| **`gcp_lab`** | `gcp-lab-1`, … | **`tailscale ssh`** (see **`docs/networking.md`**) | Self-hosted runner on **`tottipi`** (see **`docs/ci-self-hosted-runner.md`**) |
+| **`gcp_lab`** | `gcp-lab-1`, … | **IAP SSH** (see **`docs/networking.md`**) | GitHub **`ubuntu-latest`** (IAP) |
 | **`home_lab`** | `tottipi`, … | Tailscale / LAN | No (laptop); services: **`docs/tottipi-services.md`** |
 
 ## Inventory
@@ -32,18 +32,16 @@ ansible-inventory --list --yaml
 
    Set **`gcp_lab_ansible_user`** in **`inventory/group_vars/gcp_lab/ssh_common.yml`**.
 
-2. **Tailscale auth key** — reusable `tskey-auth-…` from [Tailscale Keys](https://login.tailscale.com/admin/settings/keys). Storage: **`docs/networking.md`**
-
-3. **Fresh VM bootstrap** — **`docs/networking.md#bootstrap-fresh-gcp-vm`** (IAP: **`-e @extras/gcp_lab_iap_bootstrap.yml`**)
-
-Copy the secrets example:
-
-```bash
-cp inventory/group_vars/gcp_lab/tailscale_secrets.yml.example \
-   inventory/group_vars/gcp_lab/tailscale_secrets.yml
-```
+2. **Offboard from Tailscale** (if VM was previously on the tailnet) — **`docs/networking.md#offboard-from-tailscale`**
 
 ## One-time wiring (home lab)
+
+**Tailscale auth key** (optional, for **`home_lab`** only) — reusable `tskey-auth-…` from [Tailscale Keys](https://login.tailscale.com/admin/settings/keys):
+
+```bash
+cp inventory/group_vars/home_lab/tailscale_secrets.yml.example \
+   inventory/group_vars/home_lab/tailscale_secrets.yml
+```
 
 ```bash
 ansible-playbook bootstrap-home-sudo.yml --ask-become-pass
@@ -55,15 +53,15 @@ Writes **`/etc/sudoers.d/<user>-ansible`** on **`home_lab`** hosts so **`become:
 
 ```bash
 ansible-playbook site.yml --limit gcp_lab     # cloud (CI does this)
-ansible-playbook site.yml --limit home_lab    # home (includes github-runner on tottipi)
-ansible-playbook site.yml                     # all (laptop on tailnet)
+ansible-playbook site.yml --limit home_lab    # home
+ansible-playbook site.yml                     # all
 ansible gcp_lab -m ping
 ansible home_lab -m ping
 ```
 
 ## Tailscale role
 
-Installs **`tailscaled`**, joins with auth key, applies prefs via **`tailscale set`**. Prefs and policy: **`docs/networking.md`**.
+Runs on **`home_lab`** when auth key or exit-node prefs are set. **Not used on `gcp_lab`.** Policy: **`docs/networking.md`**.
 
 ## Layout
 
@@ -73,20 +71,19 @@ Installs **`tailscaled`**, joins with auth key, applies prefs via **`tailscale s
 | **`inventory/terraform_inventory.py`** | Dynamic **`gcp_lab`** |
 | **`inventory/home_lab.yml`** | Static **`home_lab`** |
 | **`inventory/group_vars/gcp_lab/ssh_common.yml`** | OS Login user + default key path |
-| **`inventory/group_vars/gcp_lab/tailnet_ssh.yml`** | Steady-state tailnet SSH |
-| **`extras/gcp_lab_iap_bootstrap.yml`** | Bootstrap IAP `ProxyCommand` (not auto-loaded) |
-| **`inventory/group_vars/gcp_lab/tailscale.yml`** | Tailscale prefs |
-| **`inventory/group_vars/gcp_lab/tailscale_secrets.yml.example`** | → **`tailscale_secrets.yml`** (gitignored) |
+| **`inventory/group_vars/gcp_lab/iap_ssh.yml`** | IAP SSH (steady state) |
 | **`inventory/group_vars/home_lab/connection.yml`** | SSH user / options for home |
-| **`inventory/group_vars/home_lab/tailscale.yml`** | Tailscale prefs |
-| **`inventory/group_vars/home_lab/github_runner.yml`** | Enable runner role on **`home_lab`** |
+| **`inventory/group_vars/home_lab/tailscale.yml`** | Tailscale prefs (no exit node) |
+| **`inventory/group_vars/home_lab/tailscale_secrets.yml.example`** | → **`tailscale_secrets.yml`** (gitignored) |
+| **`inventory/group_vars/home_lab/github_runner.yml`** | Runner role (disabled by default) |
+| **`offboard-gcp-tailscale.yml`** | One-time Tailscale removal on GCP |
 | **`bootstrap-home-sudo.yml`** | One-time sudo for **`home_lab`** |
 | **`site.yml`** | Entry playbook |
 | **`roles/common`** | Baseline sanity |
 | **`roles/tailscale`** | Install, join, prefs |
-| **`roles/github_runner`** | Docker Actions runner on **`home_lab`** |
+| **`roles/github_runner`** | Docker Actions runner on **`home_lab`** (optional) |
 | **`compose/tottipi/github-runner/`** | Runner compose + registration docs |
 
 ## Secrets
 
-**`tailscale_secrets.yml`** is gitignored. Optionally Ansible Vault-encrypt for defense in depth. Auth key locations: **`docs/networking.md`**.
+**`home_lab/tailscale_secrets.yml`** is gitignored. Optionally Ansible Vault-encrypt for defense in depth.

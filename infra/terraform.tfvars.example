@@ -22,8 +22,8 @@ os_login_admin_members = [
 # Typical IAP-only stance: disable public IPs and tighten direct-Internet SSH.
 enable_external_public_ip = false
 
-# Bootstrap only — docs/networking.md#bootstrap-fresh-gcp-vm
-enable_cloud_nat = false
+# Bootstrap only — docs/networking.md#offboard-from-tailscale
+enable_cloud_nat = true
 
 # SSH from arbitrary Internet IPs (narrow CIDR(s)). Leave [] to omit this rule entirely.
 ssh_source_ranges = []

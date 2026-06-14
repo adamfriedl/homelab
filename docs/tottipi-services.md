@@ -13,29 +13,25 @@ Internet (home ISP)
   ┌─────────┐
   │ tottipi │
   └────┬────┘
-       │ tailscaled (exit node, approved in admin)
-       ├──────────────────────────────────────┐
-       │                                      │
-       ▼                                      ▼
-  gcp-lab-1                           GitHub (hosted)
-  exit-node egress                    Terraform plan/apply (WIF)
-  tailnet SSH admin                   (no tottipi required)
-       ▲
-       │ tailnet SSH :22 (CI converge via github-runner)
+       │ tailscaled (mesh only — no exit node)
        │
-  github-runner on tottipi (Docker, host network)
+       ▼
+  home admin / future edge services
+  (Cloudflare Tunnel, metrics, etc.)
+
+  gcp-lab-1 ── Cloud NAT + IAP ── independent of tottipi
 ```
 
-If **`tottipi`** or its exit node is down, **`gcp-lab-1`** loses outbound/control-plane path (NAT off) and CI converge stops.
+**`tottipi`** being down does **not** affect **`gcp-lab-1`** egress or CI.
 
 ## Service catalog
 
 | Service | Status | How run | Managed in git | Required for |
 |---------|--------|---------|----------------|--------------|
-| **`tailscaled`** | ✅ Running | `apt` / Ansible | `config/roles/tailscale`, `home_lab/tailscale.yml` | Mesh, exit node, `tailscale ssh` |
-| **`github-runner`** | ✅ Ansible-managed | Docker (`network_mode: host`) | `config/compose/tottipi/github-runner/`, `roles/github_runner` | CI Ansible `--limit gcp_lab` |
+| **`tailscaled`** | ✅ Running | `apt` / Ansible | `config/roles/tailscale`, `home_lab/tailscale.yml` | Home mesh, `tailscale ssh` to Pi |
+| **`github-runner`** | ⏸ Disabled | Docker (`network_mode: host`) | `config/compose/tottipi/github-runner/`, `roles/github_runner` | Was CI; replaced by IAP on hosted runners |
 | **metrics collector** | 📋 Planned | cron on host | `docs/observability-warehouse.md` Phase 3 | BQ `host_metrics` |
-| **Cloudflare Tunnel** | 📋 Future | TBD | — | Public ingress to tailnet backends |
+| **Cloudflare Tunnel** | 📋 Future | TBD | — | Public ingress to home services |
 
 **Observability** (`host_metrics`, alerts) tells you if services are healthy; **this doc** tells you what should exist and why.
 
@@ -43,25 +39,20 @@ If **`tottipi`** or its exit node is down, **`gcp-lab-1`** loses outbound/contro
 
 | | |
 |--|--|
-| **Config** | `tailscale_advertise_exit_node: true` |
-| **Admin** | Approve exit node in [Tailscale Machines](https://login.tailscale.com/admin/settings/keys) |
+| **Config** | `tailscale_advertise_exit_node: false` |
 | **Converge** | `ansible-playbook site.yml --limit home_lab` |
 | **Depends on** | Home ISP, Tailscale control plane |
 
-See **`docs/networking.md`** § Exit node.
+See **`docs/networking.md`**.
 
-## `github-runner`
+## `github-runner` (deprecated for gcp_lab CI)
 
 | | |
 |--|--|
-| **Why** | Hosted GH Actions uses IAP for Ansible; IAP breaks when **`gcp-lab-1`** has exit node on |
-| **Labels** | `homelab`, `tottipi` |
-| **Network** | Docker **`network_mode: host`** — uses host Tailscale routes to reach `gcp-lab-1` |
-| **Compose** | **`config/compose/tottipi/github-runner/`** |
-| **Converge** | `ansible-playbook site.yml --limit home_lab` (after one-time GitHub registration) |
+| **Why removed** | GCP no longer uses Tailscale exit node; CI uses IAP on **`ubuntu-latest`** |
+| **Default** | `github_runner_enabled: false` |
+| **Compose** | **`config/compose/tottipi/github-runner/`** (optional if you want a runner for other jobs) |
 | **Design** | **`docs/ci-self-hosted-runner.md`** |
-
-Do not `docker run` the runner by hand without adding a row here and a compose file in the repo.
 
 ## Not managed in this repo (yet)
 
@@ -73,7 +64,7 @@ Document anything you install manually here before it becomes a dependency:
 
 ## Related docs
 
-- **`docs/networking.md`** — NAT, exit node, bootstrap, admin SSH
-- **`docs/ci-self-hosted-runner.md`** — runner implementation sketch
+- **`docs/networking.md`** — Cloud NAT, IAP, admin SSH
+- **`docs/ci-self-hosted-runner.md`** — CI over IAP
 - **`docs/observability-warehouse.md`** — metrics collector on `tottipi` (Phase 3)
 - **`config/README.md`** — Ansible `home_lab` converge

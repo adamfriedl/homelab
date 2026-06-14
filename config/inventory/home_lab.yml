@@ -1,6 +1,6 @@
 ---
 # Home-lab hosts (Tailscale / LAN). Not provisioned by infra/ Terraform.
-# Reachable from your tailnet; CI converge uses --limit gcp_lab only.
+# Reachable from your tailnet; gcp_lab is independent (IAP + Cloud NAT).
 
 all:
   children:

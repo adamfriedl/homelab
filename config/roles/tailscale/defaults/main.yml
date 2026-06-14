@@ -1,5 +1,5 @@
 ---
-# Prefer inventory/group_vars/gcp_lab/tailscale_secrets.yml (auto-merged).
+# Prefer inventory/group_vars/home_lab/tailscale_secrets.yml (auto-merged).
 # Alternative: ansible-playbook site.yml -e @path/to/secrets.yml
 # Generated in Tailscale admin: Settings → Keys (reusable/pre-auth key recommended for automation).
 tailscale_auth_key: ''
@@ -7,7 +7,7 @@ tailscale_auth_key: ''
 # If true, node accepts subnets/routes advertised by other tailnet peers.
 tailscale_accept_routes: false
 
-# If true, use Tailscale MagicDNS (required on tottipi for CI runner to resolve gcp-lab-1).
+# If true, use Tailscale MagicDNS (useful on home_lab hosts).
 tailscale_accept_dns: false
 
 # Optional Tailscale HTTPS DNS name suffix (omit to use GCP instance name automatically).
@@ -19,7 +19,7 @@ tailscale_enable_ssh_server: true
 # ACL tags, comma-separated — must be allowed by your ACLs, e.g. "tag:gcp-lab".
 tailscale_advertise_tags: ''
 
-# Offer as exit node (home_lab only). Route via peer: gcp_lab/tailscale.yml. Policy: docs/networking.md
+# Offer as exit node (home_lab only). Policy: docs/networking.md
 tailscale_advertise_exit_node: false
 
 tailscale_exit_node: ''

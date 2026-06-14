@@ -1,5 +1,5 @@
 name: Ansible GCP bootstrap
-description: WIF auth, terraform init for inventory, ephemeral OS Login SSH key. Expects homelab-github-runner image.
+description: WIF auth, terraform init for inventory, ephemeral OS Login SSH key for IAP Ansible.
 
 inputs:
   workload_identity_provider:

@@ -12,16 +12,11 @@
 #   GCP_ZONE                optional (default us-central1-c)
 #   IAP_SSH_TUNNEL_MEMBER   optional — user:you@example.com (human SSH / IAP)
 #
-# Secret (keep in sync with config/.../tailscale_secrets.yml for laptop runs):
-#   TAILSCALE_AUTH_KEY      tskey-auth-… reusable auth key from Tailscale admin → Keys
-#
 # Local one-time OS Login (after first terraform apply with os_login_admin_members):
 #   gcloud compute os-login ssh-keys add --key-file=~/.ssh/google_compute_engine.pub
 #   gcloud compute os-login describe-profile --format='value(posixAccounts[0].username)'
 #
-# Ansible validate (+ converge on main) runs as one job on tottipi — bootstrap once,
-# reuse the same ephemeral OS Login key for ping and site.yml.
-# Register runner first: config/compose/tottipi/github-runner/README.md
+# Ansible validate (+ converge on main) runs on ubuntu-latest over IAP SSH.
 
 name: Plan and apply
 
@@ -128,7 +123,7 @@ jobs:
             echo "region     = \"${region}\""
             echo "zone       = \"${zone}\""
             echo "enable_external_public_ip = false"
-            echo "enable_cloud_nat = false"
+            echo "enable_cloud_nat = true"
             echo "enable_os_login = true"
             echo "ssh_source_ranges = []"
             printf '%s\n' "iap_ssh_tunnel_members = [$(IFS=,; echo "${iap_members[*]}")]"
@@ -151,9 +146,14 @@ jobs:
     needs: plan-or-apply
     if: needs.plan-or-apply.result == 'success'
     timeout-minutes: 20
-    runs-on: [self-hosted, homelab, tottipi]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Install Ansible
+        run: pip install ansible
 
       - name: Bootstrap GCP auth, inventory, and OS Login key
         id: bootstrap
@@ -180,32 +180,20 @@ jobs:
 
           inv = json.loads(subprocess.check_output(["ansible-inventory", "--list"], text=True))
           gcp_hosts = inv.get("gcp_lab", {}).get("hosts", [])
-          home_hosts = inv.get("home_lab", {}).get("hosts", [])
           if not gcp_hosts:
               raise SystemExit("gcp_lab has no hosts (terraform inventory empty?)")
-          if "tottipi" not in home_hosts:
-              raise SystemExit(f"home_lab missing tottipi (got {home_hosts!r})")
           print(f"gcp_lab: {gcp_hosts}")
-          print(f"home_lab: {home_hosts}")
           PY
 
       - name: ansible-playbook syntax-check
         working-directory: config
         run: ansible-playbook site.yml --syntax-check
 
-      - name: Ping gcp_lab over tailnet
+      - name: Ping gcp_lab over IAP
         working-directory: config
         run: ansible gcp_lab -m ping -e @/tmp/ci-oslogin.yml
 
       - name: ansible-playbook site.yml
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: config
-        env:
-          TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
-        run: |
-          extra=()
-          if [ -n "${TAILSCALE_AUTH_KEY}" ]; then
-            extra+=(-e "tailscale_auth_key=${TAILSCALE_AUTH_KEY}")
-          fi
-
-          ansible-playbook site.yml -e @/tmp/ci-oslogin.yml --limit gcp_lab "${extra[@]}"
+        run: ansible-playbook site.yml -e @/tmp/ci-oslogin.yml --limit gcp_lab

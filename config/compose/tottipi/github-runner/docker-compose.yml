@@ -1,5 +1,6 @@
 # Self-hosted GitHub Actions runner for homelab CI converge.
-# Uses host networking so jobs reach gcp-lab-1 over the Pi's tailnet routes.
+# Optional legacy self-hosted runner (gcp_lab CI now uses IAP on GitHub-hosted runners).
+# Uses host networking when enabled.
 
 services:
   github-runner:
