@@ -1,44 +1,39 @@
 # Networking
 
-How **`gcp-lab-1`** and **`tottipi`** connect — **GCP uses Cloud NAT + IAP; Tailscale is home-lab only.**
+**`gcp-lab-1`** is a private GCP VM: **Cloud NAT** for egress, **IAP** for admin SSH and Ansible.
 
 ## Steady state
 
 ```
-                    Internet
-                        │
-          ┌─────────────┴─────────────┐
-          │                           │
-          ▼                           ▼
-     ┌─────────┐                 ┌─────────┐
-     │ tottipi │                 │ Cloud   │
-     │ (home)  │                 │ NAT     │
-     └────┬────┘                 └────┬────┘
-          │ Tailscale (optional)      │ GCP egress
-          │ mesh only                 ▼
-          │                      ┌─────────┐
-          └──── (no exit node)   │gcp-lab-1│  private VM, no public IP
-                                 │         │  IAP SSH for admin + CI
-                                 └─────────┘
+        Internet
+            │
+            ▼
+       ┌─────────┐
+       │ Cloud   │
+       │ NAT     │
+       └────┬────┘
+            │ egress
+            ▼
+       ┌─────────┐
+       │gcp-lab-1│  private IP, no public IP
+       │         │  IAP SSH for admin + CI
+       └─────────┘
 ```
 
-| Host / path | Steady state |
-|-------------|----------------|
-| **`gcp-lab-1`** | Private `e2-micro`; **IAP SSH** for admin and Ansible |
-| **`tottipi`** | Home Pi; Tailscale for home mesh only (no exit node) |
+| Path | Steady state |
+|------|----------------|
 | **GCP outbound internet** | **Cloud NAT** (`enable_cloud_nat = true`) |
-| **GCP ↔ home** | **Not coupled** — no Tailscale on GCP |
-| **Public ingress (planned)** | Cloudflare Tunnel on **`tottipi`**, not open GCP ports |
+| **Admin / Ansible SSH** | **IAP** + OS Login |
+| **Public ingress** | Not open on GCP (future edge services elsewhere if needed) |
 
-Full Ansible layout: **`config/README.md`** § Layout.
+Ansible layout: **`config/README.md`**.
 
 ## Admin SSH
 
-| Method | When | **`gcp-lab-1`** |
-|--------|------|-----------------|
-| **`gcloud compute ssh --tunnel-through-iap`** | **Steady state** | ✅ **Use this** |
-| **`ansible gcp_lab -m ping`** | Laptop / CI | ✅ IAP `ProxyCommand` in **`iap_ssh.yml`** |
-| **`tailscale ssh`** | Home hosts only | ❌ Not on GCP |
+| Method | **`gcp-lab-1`** |
+|--------|-----------------|
+| **`gcloud compute ssh --tunnel-through-iap`** | ✅ **Use this** |
+| **`ansible gcp_lab -m ping`** | ✅ IAP `ProxyCommand` in **`iap_ssh.yml`** |
 
 Example:
 
@@ -49,17 +44,14 @@ gcloud compute ssh ajfriedl_gmail_com@gcp-lab-1 \
 
 OS Login username from **`gcloud compute os-login describe-profile`**.
 
-## New GCP VM
+## New VM
 
 ```bash
-# 1. Terraform (NAT on)
 cd infra && terraform apply
 
-# 2. OS Login key (one-time)
 gcloud compute os-login ssh-keys add --key-file=~/.ssh/google_compute_engine.pub
 
-# 3. Converge
-cd ../config && ansible-playbook site.yml --limit gcp_lab
+cd ../config && ansible-playbook site.yml
 ```
 
 ## Terraform knobs
@@ -67,7 +59,7 @@ cd ../config && ansible-playbook site.yml --limit gcp_lab
 | Variable | Steady state | Purpose |
 |----------|--------------|---------|
 | **`enable_external_public_ip`** | `false` | Private IP only |
-| **`enable_cloud_nat`** | `true` | Outbound internet for apt and control plane |
+| **`enable_cloud_nat`** | `true` | Outbound internet |
 
 Template: **`infra/terraform.tfvars.example`**. Include your user and CI SA in **`iap_ssh_tunnel_members`** and **`os_login_admin_members`**.
 
@@ -77,7 +69,6 @@ GitHub Actions converges **`gcp_lab`** on **`ubuntu-latest`** over IAP. See **`d
 
 ## Related docs
 
-- **`config/README.md`** — Ansible inventory, OS Login, playbook commands
+- **`config/README.md`** — Ansible inventory and playbooks
 - **`infra/README.md`** — Terraform workflow, WIF
-- **`docs/tottipi-services.md`** — what runs on the Pi
 - **`README.md`** — repo overview

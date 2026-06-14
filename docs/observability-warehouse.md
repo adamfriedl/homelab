@@ -6,7 +6,7 @@ Plan for a free-tier BigQuery “poor man’s” data platform: billing + CI + h
 
 - Learn DevOps/data patterns: IaC, batch loads, partitioned BQ tables, CI instrumentation
 - Stay on GCP free tier (~$0 at lab scale)
-- Fit the lab network model — see **`docs/networking.md`** (`tottipi` collector; `gcp-lab-1` metrics via IAP or push agent)
+- Fit the lab network model — see **`docs/networking.md`** (GCP-only; metrics from `gcp-lab-1` or CI)
 
 ## Architecture
 
@@ -18,16 +18,16 @@ Plan for a free-tier BigQuery “poor man’s” data platform: billing + CI + h
                                  │          │
          billing export (GCP)    │          │  batch insert / load
                                  │          │
-┌──────────────┐   IAP or agent  ┌────────────────┐
-│  gcp-lab-1   │◄───────────────│    tottipi     │
-│  (Cloud NAT) │                 │  collector +   │
-│  metrics     │                 │  bq loader     │
-└──────────────┘                 └────────────────┘
+                          ┌──────┴──────────┴──────┐
+                          │      gcp-lab-1         │
+                          │  (Cloud NAT)           │
+                          │  optional metrics cron │
+                          └────────────────────────┘
                                       ▲
-GitHub Actions ── ci_runs ────────────┘ (WIF, no VM)
+GitHub Actions ── ci_runs ────────────┘ (WIF)
 ```
 
-**Design rule:** `tottipi` runs the collector and BQ loader. `gcp-lab-1` is a metrics source (IAP scrape or local agent push), not a BQ client.
+**Design rule:** prefer loaders that already have GCP auth (CI WIF, cron on `gcp-lab-1`). No home-lab collector required.
 
 ## Dataset and tables
 
@@ -37,7 +37,7 @@ GitHub Actions ── ci_runs ────────────┘ (WIF, no V
 |-------|-------|--------|--------|
 | `billing_*` | 1 | GCP billing export (native) | Google |
 | `ci_runs` | 2 | GitHub Actions | CI via `bq insert` (WIF → `terraform-ci@...`) |
-| `host_metrics` | 3 | `tottipi` + scrape `gcp-lab-1` | `tottipi` cron + SA key |
+| `host_metrics` | 3 | `gcp-lab-1` (and others later) | VM cron or GHA scheduled job |
 
 ### `ci_runs` (sketch)
 
@@ -58,7 +58,7 @@ Partition on `ts` (or `recorded_at`).
 
 | Column | Type | Notes |
 |--------|------|-------|
-| `host` | STRING | `tottipi`, `gcp-lab-1` |
+| `host` | STRING | e.g. `gcp-lab-1` |
 | `ts` | TIMESTAMP | partition |
 | `cpu_pct` | FLOAT64 | optional v1 |
 | `mem_avail_mb` | INT64 | |
@@ -66,7 +66,7 @@ Partition on `ts` (or `recorded_at`).
 | `load_1m` | FLOAT64 | |
 | `uptime_sec` | INT64 | optional |
 
-v1: simple shell/Python collector on `tottipi`; pull `gcp-lab-1` metrics over IAP or run `node_exporter` with remote write. Upgrade to Prometheus later if needed.
+v1: simple shell/Python cron on **`gcp-lab-1`** posting to BQ, or a scheduled GitHub Actions job over IAP. Upgrade to Prometheus later if needed.
 
 ## Phases
 
@@ -74,26 +74,25 @@ v1: simple shell/Python collector on `tottipi`; pull `gcp-lab-1` metrics over IA
 
 - Terraform `infra/modules/bigquery` (or inline): dataset `homelab`, IAM
 - Enable **billing export → BigQuery** (Console one-time or IaC if desired)
-- Example SQL in docs for spend by service (prove NAT was ~$30 when enabled)
+- Example SQL in docs for spend by service
 - **No VM egress required**
 
 ### Phase 2 — `ci_runs`
 
-- Append one row per workflow run from `plan-and-apply.yml` (and optionally `ansible.yml`)
+- Append one row per workflow run from `plan-and-apply.yml`
 - Grant CI SA `bigquery.dataEditor` on `homelab`, `bigquery.jobUser` at project
 - Use existing WIF — **no SA JSON key in GitHub**
 - `if: always()` step so failures are recorded too
 
 ### Phase 3 — `host_metrics`
 
-- Ansible on **`home_lab` only**: collector cron + nightly `bq load` (or batch insert)
-- Optional `node_exporter` on both; reach `gcp-lab-1` from `tottipi` over IAP or agent push
-- Dedicated SA `homelab-tottipi@...` with minimal BQ (+ optional GCS) IAM
-- SA JSON key on Pi at `/etc/homelab/gcp-sa.json` (gitignored, Ansible vault optional)
+- Ansible role on **`gcp_lab`**: collector cron + batch insert (or `bq load`)
+- Optional `node_exporter` on the VM; keep volume low (hourly)
+- Dedicated SA with minimal BQ IAM; prefer metadata/ADC on the VM over JSON keys if possible
 
 ### Phase 4 — dbt + Looker Studio (later)
 
-- `dbt` on `tottipi` or laptop → `stg_*` → `mart_lab_health`
+- `dbt` on laptop or CI → `stg_*` → `mart_lab_health`
 - Looker Studio dashboard: spend + CPU/disk + CI failures
 
 ## First PR scope (start here)
@@ -103,16 +102,15 @@ v1: simple shell/Python collector on `tottipi`; pull `gcp-lab-1` metrics over IA
 3. `plan-and-apply.yml` — `ci_runs` insert on completion
 4. `docs/observability-warehouse.md` — keep updated (this file)
 
-**Not in PR 1:** collectors, GCS bucket, dbt, billing export Terraform (unless easy), anything requiring `gcp-lab-1` egress.
+**Not in PR 1:** collectors, GCS bucket, dbt, billing export Terraform (unless easy)
 
 ## Auth cheat sheet
 
 | Actor | Method |
 |-------|--------|
 | GitHub Actions | Workload Identity Federation → `terraform-ci@...` |
-| `tottipi` cron | Dedicated SA + `GOOGLE_APPLICATION_CREDENTIALS` JSON key (minimal roles) |
+| `gcp-lab-1` cron | VM SA or OS Login + minimal BQ roles (TBD in Phase 3) |
 | Laptop | `gcloud auth login` / ADC |
-| `gcp-lab-1` | **Not a BQ client** for this project |
 
 ## Free tier guards
 
@@ -124,14 +122,13 @@ v1: simple shell/Python collector on `tottipi`; pull `gcp-lab-1` metrics over IA
 
 ## Deferred / dropped
 
-- GCP networking patterns that conflict with **`docs/networking.md`** (e.g. Tailscale exit node on GCP)
-- Collectors on `gcp-lab-1` pushing to GCS/BQ
+- Home-lab collector on a Raspberry Pi (out of repo scope)
+- Tailscale coupling for metrics scrape paths
 - Dataflow, Pub/Sub log pipeline (v1)
 
 ## Optional later
 
 - **Private Google Access** on VPC if `gcp-lab-1` must call `*.googleapis.com` without NAT
-- **Cloudflare Tunnel** on `tottipi` (public edge; same box as collector)
 - Join billing to custom labels as Terraform grows
 
 ## Open decisions (resolve in PR 1 if easy)
@@ -149,13 +146,12 @@ After Phase 2:
 
 After Phase 3:
 
-- One dashboard or query: host disk/CPU for both machines + monthly spend
+- One dashboard or query: host disk/CPU for `gcp-lab-1` + monthly spend
 
 ## Related docs
 
 - **`docs/networking.md`** — Cloud NAT, IAP, SSH
-- **`docs/tottipi-services.md`** — what runs on the Pi (inventory)
 - **`docs/ci.md`** — GitHub Actions CI
 - **`README.md`** — homelab overview
-- **`config/README.md`** — Ansible groups, secrets
+- **`config/README.md`** — Ansible
 - **`infra/README.md`** — Terraform workflow

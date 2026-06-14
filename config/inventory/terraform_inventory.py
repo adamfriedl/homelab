@@ -6,6 +6,8 @@ Repo layout assumed:
     <repo>/config/inventory/terraform_inventory.py
     <repo>/infra/
 
+Hosts are grouped under **`gcp_lab`** (child of **`lab`**).
+
 Override:
     export GCP_LAB_TERRAFORM_DIR=/absolute/path/to/infra
 """
