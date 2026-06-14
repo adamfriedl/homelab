@@ -38,15 +38,15 @@ variable "firewall_name" {
 }
 
 variable "ssh_source_ranges" {
-  description = "CIDR blocks allowed to SSH VMs from the public Internet. Use [] together with IAP (private IP VMs require IAP or Tailscale)."
+  description = "CIDR blocks allowed to SSH VMs from the public Internet. Use [] for IAP-only private VMs."
   type        = list(string)
   default     = []
 }
 
 variable "enable_cloud_nat" {
-  description = "Regional Cloud NAT so VMs without external IPs reach the internet (APT, Tailscale, etc.). Set true temporarily to bootstrap a fresh VM."
+  description = "Regional Cloud NAT for outbound internet from private VMs. Steady state: true. See docs/networking.md#terraform-knobs."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "enable_iap_ssh" {

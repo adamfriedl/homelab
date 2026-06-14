@@ -1,2 +1,0 @@
-# Offer tottipi as a tailnet exit node (approve in Tailscale admin). Do not set exit-node on gcp_lab VMs.
-tailscale_advertise_exit_node: true

@@ -56,12 +56,6 @@ def instance_hosts(outputs: dict) -> list[str]:
     names = output_value(outputs, "instance_names")
     if isinstance(names, list) and names:
         return [str(n) for n in names]
-
-    # Legacy single-VM output (pre instance_names).
-    single = output_value(outputs, "instance_name")
-    if single:
-        return [str(single)]
-
     return []
 
 
@@ -93,7 +87,7 @@ def build_inventory(outputs: dict) -> dict:
     if not project_id:
         missing.append("project_id")
     if not hosts:
-        missing.append("instance_names (or legacy instance_name)")
+        missing.append("instance_names")
 
     if missing:
         sys.stderr.write(
@@ -111,9 +105,6 @@ def build_inventory(outputs: dict) -> dict:
     }
 
     return {
-        "lab": {
-            "children": ["gcp_lab"],
-        },
         "gcp_lab": {
             "hosts": hosts,
             "vars": {
@@ -125,7 +116,6 @@ def build_inventory(outputs: dict) -> dict:
 
 
 def main() -> None:
-    # Ansible calls: --list  or  --host <hostname>
     if "--host" in sys.argv:
         idx = sys.argv.index("--host")
         hostname = sys.argv[idx + 1] if idx + 1 < len(sys.argv) else None
@@ -142,7 +132,7 @@ def main() -> None:
         sys.stdout.write("\n")
         return
 
-    sys.stderr.write("Usage:terraform_inventory.py --list | terraform_inventory.py --host <name>\n")
+    sys.stderr.write("Usage: terraform_inventory.py --list | terraform_inventory.py --host <name>\n")
     sys.exit(64)
 
 

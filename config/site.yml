@@ -1,14 +1,15 @@
 ---
-- name: Baseline converge for lab hosts (GCP + home)
-  hosts: lab
+- name: Baseline converge for GCP lab hosts
+  hosts: gcp_lab
   gather_facts: true
   become: true
-  roles:
-    - role: common
+  tasks:
+    - name: Sanity check reachable host
+      ansible.builtin.command: uptime
+      register: uptime_out
+      changed_when: false
 
-    # gcp_lab: tailscale_auth_key in tailscale_secrets.yml. home_lab: advertise exit node, etc.
-    - role: tailscale
-      when: >-
-        (tailscale_auth_key | default("", true) | length > 0)
-        or (tailscale_advertise_exit_node | default(false) | bool)
-        or (tailscale_exit_node | default("", true) | length > 0)
+    - name: Show host summary
+      ansible.builtin.debug:
+        msg: >-
+          OK on {{ ansible_host | default(inventory_hostname) }} — {{ uptime_out.stdout }}

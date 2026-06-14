@@ -1,4 +1,4 @@
-# Outbound HTTPS (apt, Tailscale installer, curl) requires SNAT unless the VM has a public IP.
+# Outbound internet for private VMs (apt, curl, etc.) via Cloud NAT.
 # https://cloud.google.com/nat/docs/overview
 
 resource "google_compute_router" "nat_router" {
