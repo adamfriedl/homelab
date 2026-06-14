@@ -29,7 +29,6 @@ Internet (home ISP)
 | Service | Status | How run | Managed in git | Required for |
 |---------|--------|---------|----------------|--------------|
 | **`tailscaled`** | ✅ Running | `apt` / Ansible | `config/roles/tailscale`, `home_lab/tailscale.yml` | Home mesh, `tailscale ssh` to Pi |
-| **`github-runner`** | ⏸ Disabled | Docker (`network_mode: host`) | `config/compose/tottipi/github-runner/`, `roles/github_runner` | Was CI; replaced by IAP on hosted runners |
 | **metrics collector** | 📋 Planned | cron on host | `docs/observability-warehouse.md` Phase 3 | BQ `host_metrics` |
 | **Cloudflare Tunnel** | 📋 Future | TBD | — | Public ingress to home services |
 
@@ -45,26 +44,17 @@ Internet (home ISP)
 
 See **`docs/networking.md`**.
 
-## `github-runner` (deprecated for gcp_lab CI)
-
-| | |
-|--|--|
-| **Why removed** | GCP no longer uses Tailscale exit node; CI uses IAP on **`ubuntu-latest`** |
-| **Default** | `github_runner_enabled: false` |
-| **Compose** | **`config/compose/tottipi/github-runner/`** (optional if you want a runner for other jobs) |
-| **Design** | **`docs/ci-self-hosted-runner.md`** |
-
 ## Not managed in this repo (yet)
 
 Document anything you install manually here before it becomes a dependency:
 
 | Item | Notes |
 |------|-------|
-| Other Docker containers | Add a catalog row + compose under `config/compose/tottipi/` (path TBD) when introduced |
+| Other Docker containers | Add a catalog row + compose under `config/compose/` when introduced |
 
 ## Related docs
 
 - **`docs/networking.md`** — Cloud NAT, IAP, admin SSH
-- **`docs/ci-self-hosted-runner.md`** — CI over IAP
+- **`docs/ci.md`** — CI over IAP (no runner on Pi)
 - **`docs/observability-warehouse.md`** — metrics collector on `tottipi` (Phase 3)
 - **`config/README.md`** — Ansible `home_lab` converge

@@ -226,8 +226,12 @@
 
     - name: Append advertise-exit-node to tailscale set
       ansible.builtin.set_fact:
-        tailscale_set_argv: "{{ tailscale_set_argv + ['--advertise-exit-node'] }}"
-      when: tailscale_advertise_exit_node | default(false) | bool
+        tailscale_set_argv: >-
+          {{
+            tailscale_set_argv
+            + ['--advertise-exit-node='
+               + (tailscale_advertise_exit_node | default(false) | bool | ternary('true', 'false'))]
+          }}
 
     - name: Append exit-node to tailscale set
       ansible.builtin.set_fact:

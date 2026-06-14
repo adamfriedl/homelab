@@ -44,9 +44,9 @@ variable "ssh_source_ranges" {
 }
 
 variable "enable_cloud_nat" {
-  description = "Regional Cloud NAT for bootstrap only. Steady state: false. See docs/networking.md#bootstrap-fresh-gcp-vm."
+  description = "Regional Cloud NAT for outbound internet from private VMs. Steady state: true. See docs/networking.md#terraform-knobs."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "enable_iap_ssh" {

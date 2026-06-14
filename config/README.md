@@ -8,7 +8,7 @@ Ansible converges **GCP VMs** (Terraform under **`infra/`**) and **home-lab host
 | Group | Hosts | Reachable from (steady state) | CI |
 |-------|-------|-------------------------------|-----|
 | **`gcp_lab`** | `gcp-lab-1`, … | **IAP SSH** (see **`docs/networking.md`**) | GitHub **`ubuntu-latest`** (IAP) |
-| **`home_lab`** | `tottipi`, … | Tailscale / LAN | No (laptop); services: **`docs/tottipi-services.md`** |
+| **`home_lab`** | `tottipi`, … | Tailscale / LAN | Laptop only |
 
 ## Inventory
 
@@ -31,8 +31,6 @@ ansible-inventory --list --yaml
    ```
 
    Set **`gcp_lab_ansible_user`** in **`inventory/group_vars/gcp_lab/ssh_common.yml`**.
-
-2. **Offboard from Tailscale** (if VM was previously on the tailnet) — **`docs/networking.md#offboard-from-tailscale`**
 
 ## One-time wiring (home lab)
 
@@ -61,7 +59,7 @@ ansible home_lab -m ping
 
 ## Tailscale role
 
-Runs on **`home_lab`** when auth key or exit-node prefs are set. **Not used on `gcp_lab`.** Policy: **`docs/networking.md`**.
+Runs on **`home_lab`** when an auth key is set. **Not used on `gcp_lab`.** Policy: **`docs/networking.md`**.
 
 ## Layout
 
@@ -75,14 +73,10 @@ Runs on **`home_lab`** when auth key or exit-node prefs are set. **Not used on `
 | **`inventory/group_vars/home_lab/connection.yml`** | SSH user / options for home |
 | **`inventory/group_vars/home_lab/tailscale.yml`** | Tailscale prefs (no exit node) |
 | **`inventory/group_vars/home_lab/tailscale_secrets.yml.example`** | → **`tailscale_secrets.yml`** (gitignored) |
-| **`inventory/group_vars/home_lab/github_runner.yml`** | Runner role (disabled by default) |
-| **`offboard-gcp-tailscale.yml`** | One-time Tailscale removal on GCP |
 | **`bootstrap-home-sudo.yml`** | One-time sudo for **`home_lab`** |
 | **`site.yml`** | Entry playbook |
 | **`roles/common`** | Baseline sanity |
 | **`roles/tailscale`** | Install, join, prefs |
-| **`roles/github_runner`** | Docker Actions runner on **`home_lab`** (optional) |
-| **`compose/tottipi/github-runner/`** | Runner compose + registration docs |
 
 ## Secrets
 

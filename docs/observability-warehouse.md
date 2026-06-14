@@ -6,7 +6,7 @@ Plan for a free-tier BigQuery “poor man’s” data platform: billing + CI + h
 
 - Learn DevOps/data patterns: IaC, batch loads, partitioned BQ tables, CI instrumentation
 - Stay on GCP free tier (~$0 at lab scale)
-- Fit the lab network model — see **`docs/networking.md`** (`tottipi` collector; `gcp-lab-1` scrape target over tailnet)
+- Fit the lab network model — see **`docs/networking.md`** (`tottipi` collector; `gcp-lab-1` metrics via IAP or push agent)
 
 ## Architecture
 
@@ -18,16 +18,16 @@ Plan for a free-tier BigQuery “poor man’s” data platform: billing + CI + h
                                  │          │
          billing export (GCP)    │          │  batch insert / load
                                  │          │
-┌──────────────┐    tailnet     ┌┴──────────┴───┐
-│  gcp-lab-1   │◄── scrape ────│    tottipi     │
-│  (no NAT)    │                │  collector +   │
-│  metrics     │                │  bq loader     │
-└──────────────┘                └────────────────┘
+┌──────────────┐   IAP or agent  ┌────────────────┐
+│  gcp-lab-1   │◄───────────────│    tottipi     │
+│  (Cloud NAT) │                 │  collector +   │
+│  metrics     │                 │  bq loader     │
+└──────────────┘                 └────────────────┘
                                       ▲
 GitHub Actions ── ci_runs ────────────┘ (WIF, no VM)
 ```
 
-**Design rule:** `tottipi` is the only host that routinely needs outbound internet for this project. `gcp-lab-1` is a **scrape target** over tailnet, not a BQ client.
+**Design rule:** `tottipi` runs the collector and BQ loader. `gcp-lab-1` is a metrics source (IAP scrape or local agent push), not a BQ client.
 
 ## Dataset and tables
 
@@ -66,7 +66,7 @@ Partition on `ts` (or `recorded_at`).
 | `load_1m` | FLOAT64 | |
 | `uptime_sec` | INT64 | optional |
 
-v1: simple shell/Python collector on `tottipi`; scrape `gcp-lab-1` via tailnet (`node_exporter` or remote script). Upgrade to Prometheus later if needed.
+v1: simple shell/Python collector on `tottipi`; pull `gcp-lab-1` metrics over IAP or run `node_exporter` with remote write. Upgrade to Prometheus later if needed.
 
 ## Phases
 
@@ -87,7 +87,7 @@ v1: simple shell/Python collector on `tottipi`; scrape `gcp-lab-1` via tailnet (
 ### Phase 3 — `host_metrics`
 
 - Ansible on **`home_lab` only**: collector cron + nightly `bq load` (or batch insert)
-- Optional `node_exporter` on both; scrape `gcp-lab-1` from `tottipi` over tailnet
+- Optional `node_exporter` on both; reach `gcp-lab-1` from `tottipi` over IAP or agent push
 - Dedicated SA `homelab-tottipi@...` with minimal BQ (+ optional GCS) IAM
 - SA JSON key on Pi at `/etc/homelab/gcp-sa.json` (gitignored, Ansible vault optional)
 
@@ -124,7 +124,7 @@ v1: simple shell/Python collector on `tottipi`; scrape `gcp-lab-1` via tailnet (
 
 ## Deferred / dropped
 
-- GCP networking patterns that conflict with **`docs/networking.md`** (e.g. advertise exit node on GCP, Cloud NAT in steady state)
+- GCP networking patterns that conflict with **`docs/networking.md`** (e.g. Tailscale exit node on GCP)
 - Collectors on `gcp-lab-1` pushing to GCS/BQ
 - Dataflow, Pub/Sub log pipeline (v1)
 
@@ -132,7 +132,6 @@ v1: simple shell/Python collector on `tottipi`; scrape `gcp-lab-1` via tailnet (
 
 - **Private Google Access** on VPC if `gcp-lab-1` must call `*.googleapis.com` without NAT
 - **Cloudflare Tunnel** on `tottipi` (public edge; same box as collector)
-- **Self-hosted GitHub runner** on `tottipi` — see **`docs/ci-self-hosted-runner.md`**, inventory **`docs/tottipi-services.md`**
 - Join billing to custom labels as Terraform grows
 
 ## Open decisions (resolve in PR 1 if easy)
@@ -147,7 +146,6 @@ After Phase 2:
 
 - SQL: last 30 days spend by service (billing export)
 - SQL: CI failure count last 7 days (`ci_runs`)
-- NAT line item gone from billing after NAT disabled
 
 After Phase 3:
 
@@ -155,9 +153,9 @@ After Phase 3:
 
 ## Related docs
 
-- **`docs/networking.md`** — Tailscale, NAT, bootstrap, SSH
+- **`docs/networking.md`** — Cloud NAT, IAP, SSH
 - **`docs/tottipi-services.md`** — what runs on the Pi (inventory)
-- **`docs/ci-self-hosted-runner.md`** — CI converge via runner on `tottipi`
+- **`docs/ci.md`** — GitHub Actions CI
 - **`README.md`** — homelab overview
 - **`config/README.md`** — Ansible groups, secrets
 - **`infra/README.md`** — Terraform workflow

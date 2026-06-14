@@ -1,3 +1,0 @@
----
-github_runner_compose_src: "{{ playbook_dir }}/compose/tottipi/github-runner"
-github_runner_deploy_dir: /opt/homelab/github-runner

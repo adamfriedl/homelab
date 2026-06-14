@@ -1,3 +1,0 @@
-# Self-hosted Actions runner (see config/compose/tottipi/github-runner/).
-# Disabled — gcp_lab CI uses IAP on GitHub-hosted runners (docs/ci-self-hosted-runner.md).
-github_runner_enabled: false

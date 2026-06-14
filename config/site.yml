@@ -11,6 +11,3 @@
         (tailscale_auth_key | default("", true) | length > 0)
         or (tailscale_advertise_exit_node | default(false) | bool)
         or (tailscale_exit_node | default("", true) | length > 0)
-
-    - role: github_runner
-      when: github_runner_enabled | default(false) | bool

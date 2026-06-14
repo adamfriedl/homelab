@@ -7,8 +7,8 @@ Personal homelab: **`infra/`** (Terraform / GCP) + **`config/`** (Ansible for cl
 | **`infra/`** | GCP VPC, VMs, IAP, OS Login, Cloud NAT — `terraform init`, `plan`, `apply` here |
 | **`config/`** | Ansible converge for **`gcp_lab`** and **`home_lab`** hosts (see **`config/README.md`**) |
 | **`docs/networking.md`** | **Networking (Cloud NAT, IAP, SSH)** |
-| **`docs/tottipi-services.md`** | **Services on `tottipi` (inventory + dependencies)** |
-| **`docs/ci-self-hosted-runner.md`** | **CI Ansible converge (GitHub-hosted, IAP)** |
+| **`docs/tottipi-services.md`** | **Services on `tottipi`** |
+| **`docs/ci.md`** | **GitHub Actions (Terraform + Ansible over IAP)** |
 
 ## Quick start
 
@@ -23,8 +23,6 @@ terraform plan
 
 **Ansible (after `terraform apply`):** see **`config/README.md`** (OS Login + playbooks).
 
-**Existing VM on Tailscale?** **`docs/networking.md#offboard-from-tailscale`**
-
 ## What's in the lab
 
 Hosts, egress, and SSH: **`docs/networking.md`**.
@@ -33,10 +31,10 @@ Hosts, egress, and SSH: **`docs/networking.md`**.
 
 | Job | Runner | Notes |
 |-----|--------|-------|
-| Terraform plan/apply | GitHub **`ubuntu-latest`** + WIF | Unchanged |
-| Ansible **`gcp_lab`** converge | GitHub **`ubuntu-latest`** + IAP | No **`tottipi`** dependency |
+| Terraform plan/apply | GitHub **`ubuntu-latest`** + WIF | |
+| Ansible **`gcp_lab`** converge | GitHub **`ubuntu-latest`** + IAP | |
 
-See **`docs/ci-self-hosted-runner.md`**. **`tottipi`** services: **`docs/tottipi-services.md`**.
+See **`docs/ci.md`**. **`tottipi`** services: **`docs/tottipi-services.md`**.
 
 **`home_lab`** converge: laptop (`ansible-playbook site.yml --limit home_lab`).
 

@@ -8,9 +8,9 @@ terraform init
 terraform plan
 ```
 
-**Networking (Tailscale, NAT, bootstrap, SSH):** **`docs/networking.md`**
+**Networking (Cloud NAT, IAP SSH):** **`docs/networking.md`**
 
-Steady-state variables (`enable_external_public_ip`, `enable_cloud_nat`): **`docs/networking.md#terraform-knobs`**. Template: **`terraform.tfvars.example`**.
+Key variables (`enable_external_public_ip`, `enable_cloud_nat`): **`docs/networking.md#terraform-knobs`**. Template: **`terraform.tfvars.example`**.
 
 **IAM in `terraform.tfvars`:** include both your user and the CI service account in **`iap_ssh_tunnel_members`** and **`os_login_admin_members`** so Terraform does not remove bindings on apply.
 

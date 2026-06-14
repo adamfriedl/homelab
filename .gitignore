@@ -16,7 +16,3 @@ config/**/*.retry
 config/inventory/group_vars/home_lab/tailscale_secrets.yml
 # Legacy filename (prefer inventory/group_vars path so vars merge automatically)
 config/secrets.tailscale.yml
-
-# GitHub runner on tottipi (registration token + persisted runner state)
-config/compose/tottipi/github-runner/.env
-config/compose/tottipi/github-runner/data/
