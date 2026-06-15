@@ -143,6 +143,7 @@ with DAG(
 
     transform_staging = BigQueryInsertJobOperator(
         task_id="transform_staging",
+        project_id=PROJECT_ID,
         configuration={
             "query": {
                 "query": "{{ ti.xcom_pull(task_ids='render_staging_sql') }}",
@@ -159,6 +160,7 @@ with DAG(
 
     transform_mart = BigQueryInsertJobOperator(
         task_id="transform_mart",
+        project_id=PROJECT_ID,
         configuration={
             "query": {
                 "query": "{{ ti.xcom_pull(task_ids='render_mart_sql') }}",

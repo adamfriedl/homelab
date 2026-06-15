@@ -14,6 +14,7 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
       GOOGLE_APPLICATION_CREDENTIALS: /home/airflow/.config/gcloud/application_default_credentials.json
+      GOOGLE_CLOUD_PROJECT: ${GCP_PROJECT_ID:-gcp-lab-497423}
     volumes:
       - airflow-meta:/opt/airflow
       - ./dags:/opt/airflow/dags
