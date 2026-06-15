@@ -1,22 +1,33 @@
 # homelab
 
-Personal homelab: **`infra/`** (Terraform / GCP) + **`config/`** (Ansible for GCP VMs).
+Personal GCP lab: **platform** (Terraform + Ansible) and **applications** (data pipelines).
 
-| Path | Purpose |
-|------|---------|
-| **`infra/`** | GCP VPC, VMs, IAP, OS Login, Cloud NAT |
-| **`config/`** | Ansible converge — see **`config/README.md`** |
+| Layer | Path | Purpose |
+|-------|------|---------|
+| **Platform** | **`infra/`** | GCP — VPC, VM, BigQuery datasets/tables, IAM |
+| **Platform** | **`config/`** | Ansible converge on VMs — **`config/README.md`** |
+| **Application** | **`pipelines/`** | Airflow DAGs + SQL — jobs that use BigQuery |
+| **Docs** | **`docs/`** | Layout, CI, networking, pipeline plan |
+
+**Boundary:** `infra/` = where data lives; `pipelines/` = what you do with it. See **`docs/repo-layout.md`**.
+
+| Doc | Topic |
+|-----|-------|
+| **`docs/repo-layout.md`** | Platform vs application split |
+| **`docs/data-pipeline.md`** | Film permits pipeline (first app) |
 | **`docs/networking.md`** | Cloud NAT, IAP, SSH |
-| **`docs/ci.md`** | GitHub Actions |
+| **`docs/ci.md`** | GitHub Actions (platform only) |
 
-## Quick start
-
-See **`config/README.md`** for OS Login setup and **`infra/README.md`** for Terraform.
+## Quick start (platform)
 
 ```bash
 cd infra && cp terraform.tfvars.example terraform.tfvars && terraform init && terraform apply
 cd ../config && ansible-playbook site.yml
 ```
+
+## Quick start (application)
+
+See **`pipelines/README.md`**.
 
 ## Clone
 

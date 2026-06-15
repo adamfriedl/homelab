@@ -1,6 +1,10 @@
 # Repo-wide noise
 .DS_Store
 
+# Local pipeline secrets
+pipelines/.env
+pipelines/.venv/
+
 # Terraform (often run under infra/). Avoid committing state from a stray `terraform`
 # invocation at repo root.
 *.tfstate

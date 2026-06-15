@@ -40,3 +40,15 @@ module "vm" {
   default_enable_external_public_ip = var.enable_external_public_ip
   instances                         = var.instances
 }
+
+module "bigquery" {
+  source = "./modules/bigquery"
+
+  project_id          = var.project_id
+  dataset_id          = var.bigquery_dataset_id
+  location            = var.bigquery_location
+  data_editor_members = var.bigquery_data_editor_members
+  job_user_members    = var.bigquery_job_user_members
+
+  depends_on = [google_project_service.bigquery]
+}
