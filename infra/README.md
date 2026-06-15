@@ -10,7 +10,7 @@ terraform init
 terraform plan
 ```
 
-**Networking:** **`docs/networking.md`**. **CI variables:** **`docs/ci.md`**.
+**Networking:** **`docs/networking.md`**. **CI variables and one-time SA bootstrap:** **`docs/ci.md`** (includes **`projectIamAdmin`** for **`terraform-ci@…`** so CI can apply project IAM).
 
 After apply, note BigQuery outputs:
 
