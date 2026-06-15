@@ -130,8 +130,8 @@ You'll trigger this manually at first (`schedule=None`). Once it works, you can 
 
 Stay under control by:
 
-- Loading **one year** at a time (default: 2024)
-- Filtering at the API (`$where` on `startdatetime`) — never pull the full 17k+ history until you mean to
+- Default DAG params load the **full catalog** (~17k rows, 2023 through current year) — still well within free tier
+- Filtering at the API (`$where` on `startdatetime`) — narrow the window per run if you want a smaller test slice
 - Setting **maximum bytes billed** in the BigQuery Console (e.g. 1 GB = ~$5 cap)
 
 ---
@@ -233,13 +233,13 @@ Every data engineer who skips exploration regrets it. You'll see what fields exi
 
    Look at: `eventtype`, `category`, `borough`, `startdatetime`, `parkingheld`.
 
-2. **Count for 2024:**
+2. **Count for the full catalog (DAG default window):**
 
    ```bash
-   curl -sS "https://data.cityofnewyork.us/resource/tg4x-b46p.json?\$select=count(*)&\$where=startdatetime%20>=%20'2024-01-01T00:00:00'%20AND%20startdatetime%20<%20'2025-01-01T00:00:00'"
+   curl -sS "https://data.cityofnewyork.us/resource/tg4x-b46p.json?\$select=count(*)&\$where=startdatetime%20>=%20'2023-01-01T00:00:00'%20AND%20startdatetime%20<%20'2027-01-01T00:00:00'"
    ```
 
-   Expect roughly **5,000** rows.
+   Expect roughly **17,000** rows (grows as NYC updates the feed).
 
 3. **Category breakdown (optional curiosity):**
 
@@ -254,7 +254,7 @@ Every data engineer who skips exploration regrets it. You'll see what fields exi
 ### How you know it worked
 
 - Sample JSON parses cleanly
-- 2024 count is in the thousands, not zero or millions
+- Full-catalog count is in the tens of thousands, not zero or millions
 - You can explain to someone what a "Shooting Permit" row represents
 
 ### What you learned
@@ -384,9 +384,9 @@ You'll see the full ELT loop in action: API → raw table → SQL transforms →
 
 1. In the Airflow UI, open **`nyc_film_permits`**.
 
-2. Click **Trigger DAG** (play button). Default params load **2024-01-01 through 2024-12-31**.
+2. Click **Trigger DAG** (play button). Default params load **2023-01-01 through end of 2026** (`end_date` is exclusive: `2027-01-01`).
 
-   To change the window: Trigger DAG w/ config → `{"start_date": "2024-06-01", "end_date": "2024-07-01"}` for a one-month test.
+   To narrow the window: Trigger DAG w/ config → `{"start_date": "2024-06-01", "end_date": "2024-07-01"}` for a one-month test.
 
 3. Watch tasks turn green one by one. If something fails, click the task → **Log**.
 
@@ -413,7 +413,7 @@ You'll see the full ELT loop in action: API → raw table → SQL transforms →
 | Check | Expected |
 |-------|----------|
 | All DAG tasks green | ✓ |
-| `raw_film_permits` row count | ~5,000 for full 2024 |
+| `raw_film_permits` row count | ~17,000 for full catalog (first run) |
 | `stg_film_permits` row count | Slightly less (bad rows filtered) |
 | `mart_film_permits_daily` | Aggregated rows, not zero |
 | Borough breakdown | Manhattan + Brooklyn dominate |
@@ -492,7 +492,7 @@ Don't do this until Phase 4–5 succeed. These are the "real data engineering" u
 | **Schedule the DAG** (`@weekly`) | Production operations |
 | **Incremental loads** — merge on `eventid` instead of re-inserting | Idempotency |
 | **Data quality checks** — assert row count > 0, no null boroughs | Testing in pipelines |
-| **Load 2025 YTD** alongside 2024 | Multi-period backfill |
+| **Snapshot tables** — keep weekly mart copies for week-over-week diffs | Time-travel analytics |
 | **Add dbt** for transforms instead of raw SQL files | Modern transform layer |
 | **Billing export** into same `homelab` dataset | Ties into observability warehouse plan |
 
@@ -541,7 +541,7 @@ homelab/
 
 - [ ] Terraform created `homelab.raw_film_permits`
 - [ ] You explored the API manually (Phase 1)
-- [ ] Airflow DAG `nyc_film_permits` runs green for 2024 data
+- [ ] Airflow DAG `nyc_film_permits` runs green for the full catalog
 - [ ] Mart query shows Manhattan/Brooklyn TV dominance
 - [ ] Looker Studio dashboard connects and tells a coherent story
 - [ ] You can explain each layer (raw / stg / mart) to someone else
