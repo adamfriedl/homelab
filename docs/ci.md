@@ -35,6 +35,22 @@ Set **`ansible_user`** in **`config/inventory/group_vars/gcp_lab/ssh_common.yml`
 
 WIF pool/provider bindings are one-time bootstrap (owner / gcloud), not managed by CI apply.
 
+## One-time bootstrap: project IAM for CI
+
+`roles/editor` on **`terraform-ci@…`** is not enough for Terraform to add **project-level** IAM bindings (`roles/iap.tunnelResourceAccessor`, `roles/compute.osAdminLogin`, `roles/bigquery.jobUser`, etc.). Dataset-scoped BigQuery IAM works without this; project IAM returns `403 Policy update access denied`.
+
+Run once as a project owner (replace project ID and SA email):
+
+```bash
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+  --member="serviceAccount:terraform-ci@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/resourcemanager.projectIamAdmin"
+```
+
+Then re-run the failed **Plan and apply** workflow on `main` (or push any `infra/` change) so Terraform can finish **`google_project_iam_member`** resources.
+
+This binding is bootstrap-only — not managed by Terraform (same pattern as WIF).
+
 ## Related
 
 - **`docs/networking.md`** — IAP admin SSH
