@@ -123,7 +123,7 @@ You'll trigger this manually at first (`schedule=None`). Once it works, you can 
 |-------|---------------|
 | BigQuery storage (~5k rows) | $0 (free tier) |
 | BigQuery queries (with byte limits) | $0 |
-| Airflow on Mac | $0 |
+| Airflow on Mac (Docker) | $0 |
 | Looker Studio | $0 |
 | Socrata API | $0 |
 | Cloud Composer | **Not using it** (~$300+/mo) |
@@ -144,12 +144,12 @@ Before Phase 0, you should have:
 - [ ] `gcloud` CLI installed and logged in
 - [ ] Terraform applied at least once for VPC/VM (existing homelab setup)
 - [ ] Python 3.10+ on your Mac
+- [ ] Docker Desktop (or compatible engine)
 - [ ] This repo cloned locally
 
 Nice to have (not required for v1):
 
 - [ ] Socrata app token from [NYC Open Data developer settings](https://data.cityofnewyork.us/) — raises API rate limits
-- [ ] Docker (alternative Airflow install path; we use `airflow standalone` in the plan below)
 
 ---
 
@@ -302,7 +302,7 @@ Query returns a row with `ok = 1`. No permission denied errors.
 
 ### What you're doing
 
-Running the Airflow scheduler and web UI on your Mac. Pointing it at the DAG in `pipelines/dags/`.
+Running Airflow in **Docker** on your Mac. The container mounts `pipelines/dags/`, `pipelines/sql/`, and your host **Application Default Credentials** for BigQuery.
 
 ### Why this step matters
 
@@ -310,52 +310,38 @@ This is the orchestration layer — the thing that says "first fetch, then trans
 
 ### Steps
 
-1. **Optional: Socrata app token**
+1. **ADC on the host (required for BigQuery from the container):**
+
+   ```bash
+   gcloud auth application-default login
+   gcloud config set project gcp-lab-497423
+   ```
+
+2. **Optional: Socrata app token**
 
    - Register / sign in at [opendata.cityofnewyork.us](https://opendata.cityofnewyork.us/)
    - Profile → Developer Settings → Create App Token
    - Copy to `pipelines/.env` (from `.env.example`)
 
-2. **Python environment:**
+3. **Start Airflow:**
 
    ```bash
    cd pipelines
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
+   cp .env.example .env   # if you haven't
+   docker compose up --build
    ```
 
-3. **Environment variables:**
+   First start runs DB init and prints an admin password in the logs:
 
    ```bash
-   export AIRFLOW_HOME=~/airflow-homelab
-   export GCP_PROJECT_ID=gcp-lab-497423
-   export BQ_DATASET_ID=homelab
-   export SOCRATA_APP_TOKEN=your-token-here   # optional but recommended
+   docker compose logs airflow | grep -i password
    ```
 
-4. **Initialize Airflow (first time only):**
+4. **Open the UI:** http://localhost:8080
 
-   ```bash
-   airflow db init
-   ```
+### Alternative: venv + `airflow standalone`
 
-5. **Link DAGs:**
-
-   ```bash
-   mkdir -p "$AIRFLOW_HOME/dags"
-   ln -sf "$(pwd)/dags" "$AIRFLOW_HOME/dags/homelab"
-   ```
-
-6. **Start Airflow:**
-
-   ```bash
-   airflow standalone
-   ```
-
-   This runs scheduler + webserver together. Note the admin password printed in the terminal.
-
-7. **Open the UI:** http://localhost:8080
+Without Docker: create a venv, `pip install -r requirements.txt`, set `AIRFLOW_HOME`, symlink `dags/`, run `airflow standalone`. See git history or ask — Docker is the supported path now.
 
 ### How you know it worked
 

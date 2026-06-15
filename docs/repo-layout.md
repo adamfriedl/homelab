@@ -35,8 +35,9 @@ homelab/
 | Transform SQL | `pipelines/sql/` |
 | Python deps for local Airflow | `pipelines/requirements.txt` |
 | Local env template | `pipelines/.env.example` |
+| Docker runtime | `pipelines/docker-compose.yml` |
 
-**Deployed by:** You, on your Mac (Airflow standalone today). Nothing in CI deploys `pipelines/` yet.
+**Deployed by:** You, on your Mac (`docker compose up` in `pipelines/`). Nothing in CI deploys `pipelines/` yet.
 
 **Rule:** If it orchestrates or queries data but doesn’t create GCP infrastructure, it lives in `pipelines/`.
 

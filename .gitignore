@@ -4,6 +4,8 @@
 # Local pipeline secrets
 pipelines/.env
 pipelines/.venv/
+pipelines/logs/
+pipelines/**/__pycache__/
 
 # Terraform (often run under infra/). Avoid committing state from a stray `terraform`
 # invocation at repo root.

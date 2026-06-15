@@ -1,6 +1,6 @@
 # Pipelines — application layer
 
-Jobs that extract, load, and transform data in GCP. Runs on **your Mac** (Airflow) against resources created by **`infra/`**.
+Jobs that extract, load, and transform data in GCP. Runs in **Docker** on your Mac against resources created by **`infra/`**.
 
 **Platform contract:** **`docs/repo-layout.md`**
 
@@ -23,6 +23,8 @@ pipelines/
   sql/stg_film_permits.sql
   sql/mart_film_permits_daily.sql
   requirements.txt
+  Dockerfile
+  docker-compose.yml
   .env.example
 ```
 
@@ -30,27 +32,38 @@ pipelines/
 
 Platform must exist first — merge **`infra/`** BigQuery changes or `terraform apply` locally so `homelab.raw_film_permits` exists and your user has BQ IAM (CI handles IAM if **`IAP_SSH_TUNNEL_MEMBER`** is set — **`docs/ci.md`**).
 
-## Run locally
+Host:
+
+- Docker Desktop (or compatible Docker engine)
+- `gcloud auth application-default login` (ADC mounted into the container)
+
+## Run locally (Docker)
 
 ```bash
 gcloud auth application-default login
 gcloud config set project gcp-lab-497423
 
 cd pipelines
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
 cp .env.example .env   # optional SOCRATA_APP_TOKEN
 
-export AIRFLOW_HOME=~/airflow-homelab
-export GCP_PROJECT_ID=gcp-lab-497423
-export BQ_DATASET_ID=homelab
-
-airflow db init          # first time only
-ln -sf "$(pwd)/dags" "$AIRFLOW_HOME/dags/homelab"
-airflow standalone
+docker compose up --build
 ```
 
-Open http://localhost:8080 → trigger **`nyc_film_permits`**.
+Open http://localhost:8080 — the standalone entrypoint prints the admin password in the container logs on first start:
+
+```bash
+docker compose logs airflow | grep -i password
+```
+
+Trigger DAG **`nyc_film_permits`** in the UI.
+
+Stop:
+
+```bash
+docker compose down
+```
+
+DAG run history persists in the `airflow-meta` volume. Code mounts live from `./dags` and `./sql`.
 
 ## Verify
 
@@ -60,6 +73,10 @@ FROM `gcp-lab-497423.homelab.mart_film_permits_daily`
 GROUP BY 1, 2
 ORDER BY permits DESC;
 ```
+
+## Alternative: venv + `airflow standalone`
+
+See **`docs/data-pipeline.md`** Phase 3 if you prefer a native Python venv without Docker.
 
 ## Adding another pipeline
 

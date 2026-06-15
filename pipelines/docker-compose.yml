@@ -1,0 +1,31 @@
+# Local Airflow for homelab pipelines. Requires: gcloud auth application-default login
+# on the host so ~/.config/gcloud is mounted into the container.
+
+services:
+  airflow:
+    build: .
+    image: homelab-airflow:2.10.4
+    command: standalone
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+      GOOGLE_APPLICATION_CREDENTIALS: /home/airflow/.config/gcloud/application_default_credentials.json
+    volumes:
+      - airflow-meta:/opt/airflow
+      - ./dags:/opt/airflow/dags
+      - ./sql:/opt/airflow/sql
+      - ./logs:/opt/airflow/logs
+      - ${HOME}/.config/gcloud:/home/airflow/.config/gcloud:ro
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  airflow-meta:
