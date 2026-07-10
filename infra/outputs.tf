@@ -41,7 +41,7 @@ output "bigquery_dataset_id" {
   value       = module.bigquery.dataset_id
 }
 
-output "bigquery_raw_film_permits_table" {
-  description = "Fully qualified raw film permits table for Airflow loads."
-  value       = module.bigquery.raw_film_permits_table_id
+output "bigquery_dataset_full_id" {
+  description = "Project-qualified homelab BigQuery dataset."
+  value       = module.bigquery.dataset_full_id
 }

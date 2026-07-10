@@ -16,5 +16,5 @@ After apply, note BigQuery outputs:
 
 ```bash
 terraform output bigquery_dataset_id
-terraform output bigquery_raw_film_permits_table
+terraform output bigquery_dataset_full_id
 ```
