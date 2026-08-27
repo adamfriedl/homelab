@@ -88,7 +88,7 @@ variable "os_login_admin_members" {
 variable "enable_external_public_ip" {
   description = "Default ephemeral public IPv4 for instances that do not override it. Not required for gcloud compute ssh --tunnel-through-iap."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "machine_type" {

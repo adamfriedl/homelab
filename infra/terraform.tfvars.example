@@ -31,8 +31,8 @@ bigquery_job_user_members = [
   # "serviceAccount:terraform-ci@YOUR_PROJECT_ID.iam.gserviceaccount.com",
 ]
 
-# Typical IAP-only stance: disable public IPs and tighten direct-Internet SSH.
-enable_external_public_ip = false
+# Ephemeral public IPv4 on VMs. Set false for IAP-only private instances.
+enable_external_public_ip = true
 
 # Steady state — private VM egress via Cloud NAT. See docs/networking.md
 enable_cloud_nat = true
