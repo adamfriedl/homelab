@@ -63,7 +63,9 @@ runs:
         rm -f "${HOME}/.ssh/ci_oslogin" "${HOME}/.ssh/ci_oslogin.pub"
         ssh-keygen -t rsa -f "${HOME}/.ssh/ci_oslogin" -N "" -q
 
-        gcloud compute os-login ssh-keys add --key-file="${HOME}/.ssh/ci_oslogin.pub"
+        # Ephemeral key: expire it so keys don't pile up on the SA's OS Login profile.
+        # 1h covers the job's 20-minute timeout with margin.
+        gcloud compute os-login ssh-keys add --key-file="${HOME}/.ssh/ci_oslogin.pub" --ttl=1h
 
         ansible_user="$(gcloud compute os-login describe-profile --format='value(posixAccounts[0].username)')"
         if [ -z "${ansible_user}" ]; then
