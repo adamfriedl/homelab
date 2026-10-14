@@ -44,9 +44,9 @@ variable "ssh_source_ranges" {
 }
 
 variable "enable_cloud_nat" {
-  description = "Regional Cloud NAT for outbound internet from private VMs. Steady state: true. See docs/networking.md#terraform-knobs."
+  description = "Regional Cloud NAT for outbound internet from private VMs. Off by default; turn on when a VM needs to reach the Internet. See docs/networking.md#terraform-knobs."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_iap_ssh" {
@@ -88,7 +88,7 @@ variable "os_login_admin_members" {
 variable "enable_external_public_ip" {
   description = "Default ephemeral public IPv4 for instances that do not override it. Not required for gcloud compute ssh --tunnel-through-iap."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "machine_type" {
@@ -112,9 +112,8 @@ variable "instances" {
     enable_external_public_ip = optional(bool)
     ssh_target_tags           = optional(list(string))
   }))
-  default = {
-    "gcp-lab-1" = {}
-  }
+  # Scaled to zero while the lab is idle. Restore with: { "gcp-lab-1" = {} }
+  default = {}
 }
 
 variable "bigquery_dataset_id" {

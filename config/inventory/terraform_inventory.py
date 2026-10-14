@@ -52,11 +52,12 @@ def output_value(outputs: dict, key: str):
     return blob.get("value")
 
 
-def instance_hosts(outputs: dict) -> list[str]:
+def instance_hosts(outputs: dict) -> list[str] | None:
+    """Host names, [] when infra has no VMs, or None when the output is missing."""
     names = output_value(outputs, "instance_names")
-    if isinstance(names, list) and names:
+    if isinstance(names, list):
         return [str(n) for n in names]
-    return []
+    return None
 
 
 def instance_zones(outputs: dict, hosts: list[str], default_zone: str | None) -> dict[str, str]:
@@ -86,7 +87,7 @@ def build_inventory(outputs: dict) -> dict:
     missing: list[str] = []
     if not project_id:
         missing.append("project_id")
-    if not hosts:
+    if hosts is None:
         missing.append("instance_names")
 
     if missing:

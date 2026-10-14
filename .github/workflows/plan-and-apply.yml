@@ -163,20 +163,26 @@ jobs:
           ansible_ssh_private_key_file: ${{ steps.bootstrap.outputs.ssh_private_key_file }}
           EOF
 
+      # Zero VMs is a valid state (lab scaled down); skip the playbook rather than fail.
       - name: Verify inventory
+        id: inventory
         working-directory: config
         run: |
           set -euo pipefail
-          ansible-inventory --graph gcp_lab
           python3 -c "
-          import json, subprocess
-          inv = json.loads(subprocess.check_output(['ansible-inventory', '--list'], text=True))
+          import json, os, subprocess
+          # Call the script directly: ansible-inventory hides its exit code, so a
+          # broken terraform state would look like an empty lab.
+          inv = json.loads(subprocess.check_output(['inventory/terraform_inventory.py', '--list'], text=True))
           hosts = inv.get('gcp_lab', {}).get('hosts', [])
-          assert hosts, 'gcp_lab has no hosts (terraform inventory empty?)'
           print('gcp_lab:', hosts)
+          if not hosts:
+              print('::notice::No VMs in Terraform outputs; skipping ansible-playbook.')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'has_hosts={str(bool(hosts)).lower()}\n')
           "
 
       - name: ansible-playbook site.yml
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.inventory.outputs.has_hosts == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: config
         run: ansible-playbook site.yml -e @/tmp/ci-oslogin.yml

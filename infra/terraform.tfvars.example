@@ -32,10 +32,10 @@ bigquery_job_user_members = [
 ]
 
 # Ephemeral public IPv4 on VMs. Set false for IAP-only private instances.
-enable_external_public_ip = true
+enable_external_public_ip = false
 
-# Steady state — private VM egress via Cloud NAT. See docs/networking.md
-enable_cloud_nat = true
+# Outbound internet for private VMs via Cloud NAT. Off while idle. See docs/networking.md
+enable_cloud_nat = false
 
 # SSH from arbitrary Internet IPs (narrow CIDR(s)). Leave [] to omit this rule entirely.
 ssh_source_ranges = []
